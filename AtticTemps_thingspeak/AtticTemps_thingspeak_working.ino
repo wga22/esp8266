@@ -1,25 +1,19 @@
-
-// www.arduinesp.com 
-//
 // Plot DTH11 data on thingspeak.com using an ESP8266 
 // July 11 2015
 // Author: Will Allen
+// www.arduinesp.com 
 #include <DHT.h>
 #include <ESP8266WiFi.h>
 #define DHTPIN 2 // what pin we're connected to
-
  
 // replace with your channel's thingspeak API key, 
-String apiKey = "NK6HEWTA7BC9ANLD";
 // http://api.wunderground.com/api/13db05c35598dd93/conditions/q/Australia/Sydney.json
+String apiKey = "NK6HEWTA7BC9ANLD";
 String wundergroundKey = "13db05c35598dd93";
 const char* ssid = "mcdonalds";
 const char* password = "9085612944danica";
 const int buffer=300;
 const char* server = "api.thingspeak.com";
-
-char* conds[]={"\"temp_f\":"};
-int num_elements = 1;  // number of conditions you are retrieving, count of elements in conds
 
 bool resetWifiEachTime = true;
 bool fTesting =false;     //turns off need for DHT11
@@ -28,44 +22,44 @@ DHT dht(DHTPIN, DHT11,20);
 WiFiClient client;
 int sleepPerLoop = 60*1000*60;  //1 hr   
  
-void setup() {                
-  Serial.begin(115200);
-  if(fTesting)
-  {
-    Serial.println("waiting for power to stabilize - 30 secs");
-    delay(.5*1000*60);  //5 mins
-  }
-  else
-  {
-    Serial.println("waiting for power to stabilize - 5 mins");
-    delay(5*1000*60);  //5 mins
-  }
-  //delay(0.1*1000*60);  //.1 mins
-  dht.begin();
-  if (!resetWifiEachTime) {
-    startWifi();
-  }
+void setup() 
+{ 
+	Serial.begin(115200);
+	if(fTesting)
+	{
+		Serial.println("waiting for power to stabilize - 30 secs");
+		delay(.5*1000*60);  //5 mins
+	}
+	else
+	{
+		Serial.println("waiting for power to stabilize - 5 mins");
+		delay(5*1000*60);  //5 mins
+	}
+	//delay(0.1*1000*60);  //.1 mins
+	dht.begin();
+	if (!resetWifiEachTime) 
+	{
+		startWifi();
+	}
 }
 
 void startWifi()
 {
-  delay(1000);
-  
-  WiFi.begin(ssid, password);
- 
-  Serial.println();
-  Serial.println();
-  Serial.print("Connecting to ");
-  Serial.println(ssid);
-   
-  WiFi.begin(ssid, password);
-   
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println("");
-  Serial.println("WiFi connected");
+	delay(1000);
+	Serial.println();
+	Serial.println();
+	Serial.print("Connecting to ");
+	Serial.println(ssid);
+
+	WiFi.begin(ssid, password);
+
+	while (WiFi.status() != WL_CONNECTED) 
+	{
+		delay(500);
+		Serial.print(".");
+	}
+	Serial.println("");
+	Serial.println("WiFi connected");
 }
 
 String getInternetTemp()
@@ -81,7 +75,7 @@ String getInternetTemp()
   
   int passNum = 1;
   String out = "-1";
-  char* wunderground = "api.wunderground.com";
+  String wunderground = "api.wunderground.com";
   if (client.connect(wunderground, 80)) 
   {
     Serial.println("connected to wunderground");
@@ -99,7 +93,7 @@ String getInternetTemp()
     if(pp==500)
       Serial.println("there was an issue pulling from the stream");
  
-    char* fieldName = "\"temp_f\":";
+    String fieldName = "\"temp_f\":";
     Serial.print("looking for: ");
     Serial.println(fieldName);
     int x = 2000;  //limit tries
