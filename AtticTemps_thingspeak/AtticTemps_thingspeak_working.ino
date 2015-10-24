@@ -1,28 +1,46 @@
+
 // www.arduinesp.com 
 //
 // Plot DTH11 data on thingspeak.com using an ESP8266 
-// April 11 2015
-// Author: Jeroen Beemster
-// Website: www.arduinesp.com
-//WORKING
- 
+// July 11 2015
+// Author: Will Allen
 #include <DHT.h>
 #include <ESP8266WiFi.h>
+#define DHTPIN 2 // what pin we're connected to
+
  
 // replace with your channel's thingspeak API key, 
 String apiKey = "NK6HEWTA7BC9ANLD";
+// http://api.wunderground.com/api/13db05c35598dd93/conditions/q/Australia/Sydney.json
+String wundergroundKey = "13db05c35598dd93";
 const char* ssid = "mcdonalds";
 const char* password = "9085612944danica";
-bool resetWifiEachTime = true;
+const int buffer=300;
 const char* server = "api.thingspeak.com";
-#define DHTPIN 2 // what pin we're connected to
- 
+
+char* conds[]={"\"temp_f\":"};
+int num_elements = 1;  // number of conditions you are retrieving, count of elements in conds
+
+bool resetWifiEachTime = true;
+bool fTesting =false;     //turns off need for DHT11
+
 DHT dht(DHTPIN, DHT11,20);
 WiFiClient client;
 int sleepPerLoop = 60*1000*60;  //1 hr   
  
 void setup() {                
-  delay(5*1000*60);  //5 mins
+  Serial.begin(115200);
+  if(fTesting)
+  {
+    Serial.println("waiting for power to stabilize - 30 secs");
+    delay(.5*1000*60);  //5 mins
+  }
+  else
+  {
+    Serial.println("waiting for power to stabilize - 5 mins");
+    delay(5*1000*60);  //5 mins
+  }
+  //delay(0.1*1000*60);  //.1 mins
   dht.begin();
   if (!resetWifiEachTime) {
     startWifi();
@@ -31,8 +49,7 @@ void setup() {
 
 void startWifi()
 {
-  Serial.begin(115200);
-  delay(100);
+  delay(1000);
   
   WiFi.begin(ssid, password);
  
@@ -40,13 +57,81 @@ void startWifi()
   Serial.println();
   Serial.print("Connecting to ");
   Serial.println(ssid);
-      
+   
+  WiFi.begin(ssid, password);
+   
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
   Serial.println("");
   Serial.println("WiFi connected");
+}
+
+String getInternetTemp()
+{
+  //http://thisoldgeek.blogspot.com/2015/01/esp8266-weather-display.html
+  //http://api.wunderground.com/api/13db05c35598dd93/conditions/q/va/vienna.json
+  //wundergroundKey
+  // Array of desired weather conditions 
+  // These must be in the order received from wunderground!
+  //
+  // Also, watch out for repeating field names in returned json structures, 
+  //  and fields with embedded commas (used as delimiters)
+  
+  int passNum = 1;
+  String out = "-1";
+  char* wunderground = "api.wunderground.com";
+  if (client.connect(wunderground, 80)) 
+  {
+    Serial.println("connected to wunderground");
+    client.println("GET /api/13db05c35598dd93/conditions/q/va/vienna.json HTTP/1.1");
+    client.println("Host: api.wunderground.com");
+    client.println("Connection: close");
+    client.println();
+ 
+     //Wait up to 10 seconds for server to respond then read response
+    int pp=0;
+    while((!client.available()) && (pp<500)){
+      delay(20);
+      pp++;
+    }
+    if(pp==500)
+      Serial.println("there was an issue pulling from the stream");
+ 
+    char* fieldName = "\"temp_f\":";
+    Serial.print("looking for: ");
+    Serial.println(fieldName);
+    int x = 2000;  //limit tries
+    for(; !client.find(fieldName) && x>0; x--){} // find the part we are interested in.
+    if(x==0) {Serial.println("we never found the field");}
+    else{
+    out="";
+    int i=0;
+    while (i<6000) 
+    {
+      if(client.available()) 
+      {
+        char c = client.read();    
+        if(c==',') break;
+        out+=c;
+        i=0;
+      }
+        i++;
+      }
+    }
+    Serial.println("finished reading");
+    // if the server's disconnected, stop the client:
+    if (!client.connected()) 
+    {
+      Serial.println();
+      Serial.println("disconnecting from server.");
+      client.stop();
+    }
+  }
+  Serial.print("out: ");
+  Serial.println(out);
+  return out;
 }
 
 void loop() {
@@ -57,8 +142,19 @@ void loop() {
   float t = dht.readTemperature(true);
   if (isnan(h) || isnan(t)) {
     Serial.println("Failed to read from DHT sensor!");
-    return;
+    if(fTesting)
+    {
+      h=0;
+      t=0;
+    }
+    else
+    {
+      Serial.println("Failed to read from DHT sensor! - aborting loop");
+      return;
+    }
   }
+
+  String viennaTemp = getInternetTemp();
  
   if (client.connect(server,80)) {  //   "184.106.153.149" or api.thingspeak.com
     String postStr = apiKey;
@@ -66,6 +162,11 @@ void loop() {
            postStr += String(t);
            postStr +="&field2=";
            postStr += String(h);
+    if(viennaTemp!="-1")
+    {
+           postStr += "&field3=";
+           postStr += viennaTemp;
+    }
            postStr += "\r\n\r\n";
  
      client.print("POST /update HTTP/1.1\n"); 
@@ -83,8 +184,11 @@ void loop() {
      Serial.print(t);
      Serial.print(" degrees fahrenheit Humidity: "); 
      Serial.print(h);
+     Serial.print(" internet temp: "); 
+     Serial.print(viennaTemp);
      Serial.println("% send to Thingspeak");    
-  }
+  
+}
   client.stop();
   if(resetWifiEachTime)
   {
