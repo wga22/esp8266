@@ -1,17 +1,27 @@
 // Plot DTH11 data on thingspeak.com using an ESP8266 
 // July 11 2015
 // Author: Will Allen
-// www.arduinesp.com 
+/*
+REF sites:
+--good sample code for using SSL
+https://github.com/cottsak/opensesameseed/blob/master/iforgottocloseit/iforgottocloseit.ino
+
+--wunderground code
+http://thisoldgeek.blogspot.com/2015/01/esp8266-weather-display.html
+
+www.arduinesp.com 
+*/
 #include <DHT.h>
 #include <ESP8266WiFi.h>
 #define DHTPIN 2 // what pin we're connected to
- 
+
+//keys.h to include: WIFI_SSID, WIFI_PASSWORD, WUNDERGROUNDKEY
+#include <keys.h>
+#include "user_interface.h"
+
+
 // replace with your channel's thingspeak API key, 
 // http://api.wunderground.com/api/13db05c35598dd93/conditions/q/Australia/Sydney.json
-const char* apiKey = "NK6HEWTA7BC9ANLD";
-const char* wundergroundKey = "13db05c35598dd93";
-const char* ssid = "mcdonalds";
-const char* password = "9085612944danica";
 const int buffer=300;
 const char* server = "api.thingspeak.com";
 
@@ -69,7 +79,7 @@ void loop()
 	String viennaTemp = getInternetTemp();
 	if (client.connect(server,80)) 
 	{  //   "184.106.153.149" or api.thingspeak.com
-		String postStr = apiKey;
+		String postStr = THINGSPEAK_API;
 		postStr +="&field1=";
 		postStr += String(t);
 		postStr +="&field2=";
@@ -85,7 +95,7 @@ void loop()
 		client.print("Host: api.thingspeak.com\n"); 
 		client.print("Connection: close\n"); 
 		client.print("X-THINGSPEAKAPIKEY: ");
-		client.print(apiKey); 
+		client.print(THINGSPEAK_API); 
 		client.print("\nContent-Type: application/x-www-form-urlencoded\n"); 
 		client.print("Content-Length: "); 
 		client.print(postStr.length()); 
@@ -110,7 +120,7 @@ void loop()
 	if(fDeepSleep)
 	{
 		//system_deep_sleep_set_option(0);
-		//TODO system_deep_sleep(sleepPerLoop * 1000);	//for some reason the deepsleep is in ms?	
+		//system_deep_sleep(sleepPerLoop * 1000);	//for some reason the deepsleep is in ms?	
 		delay(sleepPerLoop);
 	}
 	else
@@ -132,9 +142,9 @@ void startWifi()
 	Serial.println();
 	Serial.println();
 	Serial.print("Connecting to ");
-	Serial.println(ssid);
+	Serial.println(WIFI_SSID);
 
-	WiFi.begin(ssid, password);
+	WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
 	while (WiFi.status() != WL_CONNECTED) 
 	{
@@ -162,7 +172,9 @@ String getInternetTemp()
 	if (client.connect(wunderground, 80)) 
 	{
 		Serial.println("connected to wunderground");
-		client.println("GET /api/13db05c35598dd93/conditions/q/va/vienna.json HTTP/1.1");
+		client.print("GET /api/");
+		client.print(WUNDERGROUNDKEY);
+		client.println("/conditions/q/va/vienna.json HTTP/1.1");
 		client.println("Host: api.wunderground.com");
 		client.println("Connection: close");
 		client.println();
