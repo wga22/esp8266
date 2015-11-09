@@ -27,11 +27,11 @@ const char* server = "api.thingspeak.com";
 
 bool resetWifiEachTime = true;
 bool fTesting =false;     //turns off need for DHT11
-bool fDeepSleep = false;
+bool fDeepSleep = true;
 
 DHT dht(DHTPIN, DHT11,20);
 WiFiClient client;
-int sleepPerLoop = 60*1000*60;  //1 hr   
+int sleepPerLoopMilliSeconds = 60*1000*60;  //1 hr   
  
 void setup() 
 { 
@@ -39,12 +39,12 @@ void setup()
 	if(fTesting)
 	{
 		Serial.println("waiting for power to stabilize - 30 secs");
-		delay(.5*1000*60);  //5 mins
+		delay(.5*1000*60);  //30 seconds
 	}
 	else
 	{
 		Serial.println("waiting for power to stabilize - 5 mins");
-		delay(5*1000*60);  //5 mins
+		delay(.5*1000*60);  //.5 mins
 	}
 	//delay(0.1*1000*60);  //.1 mins
 	dht.begin();
@@ -60,6 +60,10 @@ void loop()
 	{
 		startWifi();   
 	}
+	
+	//call this site each hour to keep it from idling
+	callCloudSite();
+	
 	float h = dht.readHumidity();
 	float t = dht.readTemperature(true);
 	if (isnan(h) || isnan(t)) 
@@ -121,11 +125,14 @@ void loop()
 	{
 		//system_deep_sleep_set_option(0);
 		//system_deep_sleep(sleepPerLoop * 1000);	//for some reason the deepsleep is in ms?	
-		delay(sleepPerLoop);
+		//delay(sleepPerLoop);
+		// deepSleep time is defined in microseconds. Multiply
+		// seconds by 1e6 
+		ESP.deepSleep(sleepPerLoopMilliSeconds * 100);
 	}
 	else
 	{
-		delay(sleepPerLoop);
+		delay(sleepPerLoopMilliSeconds);
 	}
 	
 }
@@ -231,3 +238,72 @@ String getInternetTemp()
 	Serial.println(out);
 	return out;
 }
+
+
+void callCloudSite()
+{
+	//in order to keep openshift.com site from idling, must call it 1x (at least) a day
+	
+	/*
+	GET /tutorials/other/top-20-mysql-best-practices/ HTTP/1.1
+	Host: net.tutsplus.com
+	User-Agent: Mozilla/5.0 (Windows; U; Windows NT 6.1; en-US; rv:1.9.1.5) Gecko/20091102 Firefox/3.5.5 (.NET CLR 3.5.30729)
+	Accept: text/html,application/xhtml+xml,application/xml;q=0.9,;q=0.8
+	Accept-Language: en-us,en;q=0.5
+	Accept-Encoding: gzip,deflate
+	Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7
+	Keep-Alive: 300
+	Connection: keep-alive
+	Cookie: PHPSESSID=r2t5uvjq435r4q7ib3vtdjq120
+	Pragma: no-cache
+	Cache-Control: no-cache
+*/
+	
+	
+	const char* cloudurl = "cloudservices-willcode.rhcloud.com";	//string wont work
+	if (client.connect(cloudurl, 80)) 
+	{
+		Serial.print("connected to ");
+		Serial.println(cloudurl);
+		client.println("GET / HTTP/1.1");
+		client.print("Host: ");
+		client.println(cloudurl);
+		client.println("User-Agent: Mozilla/5.0 (Windows; U; Windows NT 6.1; en-US; rv:1.9.1.5) Gecko/20091102 Firefox/3.5.5 (.NET CLR 3.5.30729)");
+		client.println("Connection: close");
+		client.println();
+
+		//Wait up to 10 seconds for server to respond then read response
+		int pp=0;
+		while((!client.available()) && (pp<50))
+		{
+			delay(100);
+			pp++;
+		}
+		if(pp==500)
+		{
+			Serial.println("there was an issue pulling from the stream");
+		}
+		int x = 2000;  //limit tries
+		int i=0;
+		while (i<6000) 
+		{
+			if(client.available()) 
+			{
+				char c = client.read();    
+			}
+			i++;
+		}
+		Serial.println("finished reading");
+	// if the server's disconnected, stop the client:
+		if (!client.connected()) 
+		{
+			Serial.println();
+			Serial.println("disconnecting from server.");
+			client.stop();
+		}
+	}
+	Serial.println("out: finished reading");
+	Serial.println(cloudurl);
+	return;
+}
+
