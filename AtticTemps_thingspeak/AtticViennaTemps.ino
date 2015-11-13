@@ -32,17 +32,10 @@ bool fDeepSleep = true;
 DHT dht(DHTPIN, DHT11, 20);
 WiFiClient client;
 int sleepPerLoopMilliSeconds = 60*1000*60;  //1 hr   
-<<<<<<< HEAD
-<<<<<<< HEAD
 //int sleepPerLoopMilliSeconds = 60*1000*1;  //1 min   
 String STATUSSTR="2015-11-12";
 String statusOut = "";
 
-=======
-=======
->>>>>>> parent of 29a8dfb... testing today
- 
->>>>>>> parent of 29a8dfb... testing today
 void setup() 
 { 
 	Serial.begin(115200);
@@ -93,6 +86,7 @@ void loop()
 	String viennaTemp = getInternetTemp();
 	if (client.connect(server,80)) 
 	{  //   "184.106.153.149" or api.thingspeak.com
+		statusOut += "_tp";
 		String postStr = THINGSPEAK_API;
 		postStr +="&field1=";
 		postStr += String(t);
@@ -125,7 +119,6 @@ void loop()
 		Serial.print(" internet temp: "); 
 		Serial.print(viennaTemp);
 		Serial.println("% send to Thingspeak");
-		statusOut += "_tp";
 	}
 	client.stop();
 	if(resetWifiEachTime)
@@ -147,8 +140,6 @@ void loop()
 	{
 		delay(sleepPerLoopMilliSeconds);
 	}
-<<<<<<< HEAD
-=======
 	client.stop();
 	if(resetWifiEachTime)
 	{
@@ -169,8 +160,6 @@ void loop()
 	{
 		delay(sleepPerLoopMilliSeconds);
 	}
->>>>>>> parent of 29a8dfb... testing today
-	
 }
 
 void turnOff(int pin) 
