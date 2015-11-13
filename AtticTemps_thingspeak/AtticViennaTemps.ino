@@ -23,7 +23,7 @@ www.arduinesp.com
 // replace with your channel's thingspeak API key, 
 // http://api.wunderground.com/api/13db05c35598dd93/conditions/q/Australia/Sydney.json
 const int buffer=300;
-const char* server = "api.thingspeak.com";
+const char* thinspeakapi = "api.thingspeak.com";
 
 bool resetWifiEachTime = true;
 bool fTesting =false;     //turns off need for DHT11
@@ -51,7 +51,7 @@ void setup()
 	}
 	//delay(0.1*1000*60);  //.1 mins
 	dht.begin();
-	if (!resetWifiEachTime) 
+	if (!resetWifiEachTime || fDeepSleep)
 	{
 		startWifi();
 	}
@@ -59,7 +59,7 @@ void setup()
 
 void loop() 
 {
-	if(resetWifiEachTime)
+	if(resetWifiEachTime && !fDeepSleep)
 	{
 		startWifi();   
 	}
@@ -67,6 +67,36 @@ void loop()
 	//call this site each hour to keep it from idling
 	callCloudSite();
 	
+	callThingSpeak();
+
+	client.stop();
+
+	if(resetWifiEachTime && !fDeepSleep)
+	{
+		WiFi.disconnect();
+	}
+	// thingspeak needs minimum 15 sec delay between updates
+	if(fDeepSleep)
+	{
+		Serial.print("deep sleeping for ");
+		Serial.println(sleepPerLoopMilliSeconds / 3600);		
+		//system_deep_sleep_set_option(0);
+		//system_deep_sleep(sleepPerLoop * 1000);	//for some reason the deepsleep is in ms?	
+		//delay(sleepPerLoop);
+		// deepSleep time is defined in microseconds. Multiply
+		// seconds by 1e6 
+		ESP.deepSleep(sleepPerLoopMilliSeconds * 1000);
+	}
+	else
+	{
+		Serial.print("DELAY for ");
+		Serial.println(sleepPerLoopMilliSeconds / 3600);		
+		delay(sleepPerLoopMilliSeconds);
+	}
+}
+
+void callThingSpeak()
+{
 	float h = dht.readHumidity();
 	float t = dht.readTemperature(true);
 	if (isnan(h) || isnan(t)) 
@@ -84,7 +114,7 @@ void loop()
 		}
 	}
 	String viennaTemp = getInternetTemp();
-	if (client.connect(server,80)) 
+	if (client.connect(thinspeakapi,80)) 
 	{  //   "184.106.153.149" or api.thingspeak.com
 		statusOut += "_tp";
 		String postStr = THINGSPEAK_API;
@@ -119,46 +149,6 @@ void loop()
 		Serial.print(" internet temp: "); 
 		Serial.print(viennaTemp);
 		Serial.println("% send to Thingspeak");
-	}
-	client.stop();
-	if(resetWifiEachTime)
-	{
-		WiFi.disconnect();
-	}
-	Serial.println("Waiting...");    
-	// thingspeak needs minimum 15 sec delay between updates
-	if(fDeepSleep)
-	{
-		//system_deep_sleep_set_option(0);
-		//system_deep_sleep(sleepPerLoop * 1000);	//for some reason the deepsleep is in ms?	
-		//delay(sleepPerLoop);
-		// deepSleep time is defined in microseconds. Multiply
-		// seconds by 1e6 
-		ESP.deepSleep(sleepPerLoopMilliSeconds * 100);
-	}
-	else
-	{
-		delay(sleepPerLoopMilliSeconds);
-	}
-	client.stop();
-	if(resetWifiEachTime)
-	{
-		WiFi.disconnect();
-	}
-	Serial.println("Waiting...");    
-	// thingspeak needs minimum 15 sec delay between updates
-	if(fDeepSleep)
-	{
-		//system_deep_sleep_set_option(0);
-		//system_deep_sleep(sleepPerLoop * 1000);	//for some reason the deepsleep is in ms?	
-		//delay(sleepPerLoop);
-		// deepSleep time is defined in microseconds. Multiply
-		// seconds by 1e6 
-		ESP.deepSleep(sleepPerLoopMilliSeconds * 100);
-	}
-	else
-	{
-		delay(sleepPerLoopMilliSeconds);
 	}
 }
 
@@ -298,18 +288,18 @@ void callCloudSite()
 		client.println("Connection: close");
 		client.println();
 
-		//Wait up to 10 seconds for server to respond then read response
+		//Wait up to 50 seconds for server to respond then read response
 		int pp=0;
 		while((!client.available()) && (pp<50))
 		{
-			delay(100);
+			delay(1000);
 			pp++;
 		}
-		if(pp==500)
+		if(pp==50)
 		{
 			Serial.println("there was an issue pulling from the stream");
+			statusOut+="_errcp";
 		}
-		int x = 2000;  //limit tries
 		int i=0;
 		while (i<6000) 
 		{
