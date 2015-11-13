@@ -78,8 +78,8 @@ void loop()
 	// thingspeak needs minimum 15 sec delay between updates
 	if(fDeepSleep)
 	{
-		Serial.print("deep sleeping for ");
-		Serial.println(sleepPerLoopMilliSeconds / 3600);		
+		Serial.print("deep sleeping for (mins)");
+		Serial.println((sleepPerLoopMilliSeconds/(60000)));		
 		//system_deep_sleep_set_option(0);
 		//system_deep_sleep(sleepPerLoop * 1000);	//for some reason the deepsleep is in ms?	
 		//delay(sleepPerLoop);
@@ -89,8 +89,8 @@ void loop()
 	}
 	else
 	{
-		Serial.print("DELAY for ");
-		Serial.println(sleepPerLoopMilliSeconds / 3600);		
+		Serial.print("DELAY for (mins)");
+		Serial.println((sleepPerLoopMilliSeconds/(60000)));		
 		delay(sleepPerLoopMilliSeconds);
 	}
 }
