@@ -33,11 +33,14 @@ DHT dht(DHTPIN, DHT11, 20);
 WiFiClient client;
 int sleepPerLoopMilliSeconds = 60*1000*60;  //1 hr   
 <<<<<<< HEAD
+<<<<<<< HEAD
 //int sleepPerLoopMilliSeconds = 60*1000*1;  //1 min   
 String STATUSSTR="2015-11-12";
 String statusOut = "";
 
 =======
+=======
+>>>>>>> parent of 29a8dfb... testing today
  
 >>>>>>> parent of 29a8dfb... testing today
 void setup() 
@@ -144,6 +147,29 @@ void loop()
 	{
 		delay(sleepPerLoopMilliSeconds);
 	}
+<<<<<<< HEAD
+=======
+	client.stop();
+	if(resetWifiEachTime)
+	{
+		WiFi.disconnect();
+	}
+	Serial.println("Waiting...");    
+	// thingspeak needs minimum 15 sec delay between updates
+	if(fDeepSleep)
+	{
+		//system_deep_sleep_set_option(0);
+		//system_deep_sleep(sleepPerLoop * 1000);	//for some reason the deepsleep is in ms?	
+		//delay(sleepPerLoop);
+		// deepSleep time is defined in microseconds. Multiply
+		// seconds by 1e6 
+		ESP.deepSleep(sleepPerLoopMilliSeconds * 100);
+	}
+	else
+	{
+		delay(sleepPerLoopMilliSeconds);
+	}
+>>>>>>> parent of 29a8dfb... testing today
 	
 }
 
