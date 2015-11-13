@@ -23,7 +23,7 @@ www.arduinesp.com
 // replace with your channel's thingspeak API key, 
 // http://api.wunderground.com/api/13db05c35598dd93/conditions/q/Australia/Sydney.json
 const int buffer=300;
-const char* thingspeakdomain = "api.thingspeak.com";
+const char* server = "api.thingspeak.com";
 
 bool resetWifiEachTime = true;
 bool fTesting =false;     //turns off need for DHT11
@@ -32,10 +32,14 @@ bool fDeepSleep = true;
 DHT dht(DHTPIN, DHT11, 20);
 WiFiClient client;
 int sleepPerLoopMilliSeconds = 60*1000*60;  //1 hr   
+<<<<<<< HEAD
 //int sleepPerLoopMilliSeconds = 60*1000*1;  //1 min   
 String STATUSSTR="2015-11-12";
 String statusOut = "";
 
+=======
+ 
+>>>>>>> parent of 29a8dfb... testing today
 void setup() 
 { 
 	Serial.begin(115200);
@@ -66,38 +70,7 @@ void loop()
 	statusOut = STATUSSTR;
 	//call this site each hour to keep it from idling
 	callCloudSite();
-
-	//call thing speak, and get the wunderground temps
-	writeTPTemps();
-
-	client.stop();
 	
-	if(resetWifiEachTime)
-	{
-		WiFi.disconnect();
-	}
-	Serial.println("Waiting...");    
-	// thingspeak needs minimum 15 sec delay between updates
-	if(fDeepSleep)
-	{
-		//system_deep_sleep_set_option(0);
-		//system_deep_sleep(sleepPerLoop * 1000);	//for some reason the deepsleep is in ms?	
-		//delay(sleepPerLoop);
-		// deepSleep time is defined in microseconds. Multiply
-		// seconds by 1e6
-		Serial.print("about to DEEP sleep:");
-		Serial.println(sleepPerLoopMilliSeconds);
-		ESP.deepSleep(sleepPerLoopMilliSeconds * 100);
-		Serial.println("waking up from deep sleep");
-	}
-	else
-	{
-		delay(sleepPerLoopMilliSeconds);
-	}
-}
-
-void writeTPTemps()
-{
 	float h = dht.readHumidity();
 	float t = dht.readTemperature(true);
 	if (isnan(h) || isnan(t)) 
@@ -105,8 +78,8 @@ void writeTPTemps()
 		Serial.println("Failed to read from DHT sensor!");
 		if(fTesting)
 		{
-			h=-100;
-			t=-100;
+			h=0;
+			t=0;
 		}
 		else
 		{
@@ -115,7 +88,7 @@ void writeTPTemps()
 		}
 	}
 	String viennaTemp = getInternetTemp();
-	if (client.connect(thingspeakdomain,80)) 
+	if (client.connect(server,80)) 
 	{  //   "184.106.153.149" or api.thingspeak.com
 		String postStr = THINGSPEAK_API;
 		postStr +="&field1=";
@@ -151,8 +124,28 @@ void writeTPTemps()
 		Serial.println("% send to Thingspeak");
 		statusOut += "_tp";
 	}
+	client.stop();
+	if(resetWifiEachTime)
+	{
+		WiFi.disconnect();
+	}
+	Serial.println("Waiting...");    
+	// thingspeak needs minimum 15 sec delay between updates
+	if(fDeepSleep)
+	{
+		//system_deep_sleep_set_option(0);
+		//system_deep_sleep(sleepPerLoop * 1000);	//for some reason the deepsleep is in ms?	
+		//delay(sleepPerLoop);
+		// deepSleep time is defined in microseconds. Multiply
+		// seconds by 1e6 
+		ESP.deepSleep(sleepPerLoopMilliSeconds * 100);
+	}
+	else
+	{
+		delay(sleepPerLoopMilliSeconds);
+	}
+	
 }
-
 
 void turnOff(int pin) 
 {
