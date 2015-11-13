@@ -29,11 +29,13 @@ bool resetWifiEachTime = true;
 bool fTesting =false;     //turns off need for DHT11
 bool fDeepSleep = true;
 
-DHT dht(DHTPIN, DHT11,20);
+DHT dht(DHTPIN, DHT11, 20);
 WiFiClient client;
-//int sleepPerLoopMilliSeconds = 60*1000*60;  //1 hr   
-int sleepPerLoopMilliSeconds = 60*1000*1;  //1 min   
- 
+int sleepPerLoopMilliSeconds = 60*1000*60;  //1 hr   
+//int sleepPerLoopMilliSeconds = 60*1000*1;  //1 min   
+String STATUSSTR="2015-11-12";
+String statusOut = "";
+
 void setup() 
 { 
 	Serial.begin(115200);
@@ -61,7 +63,7 @@ void loop()
 	{
 		startWifi();   
 	}
-	
+	statusOut = STATUSSTR;
 	//call this site each hour to keep it from idling
 	callCloudSite();
 
@@ -125,6 +127,8 @@ void writeTPTemps()
 			postStr += "&field3=";
 			postStr += viennaTemp;
 		}
+		postStr += "&status=";
+		postStr += statusOut;
 		postStr += "\r\n\r\n";
 
 		client.print("POST /update HTTP/1.1\n"); 
@@ -145,6 +149,7 @@ void writeTPTemps()
 		Serial.print(" internet temp: "); 
 		Serial.print(viennaTemp);
 		Serial.println("% send to Thingspeak");
+		statusOut += "_tp";
 	}
 }
 
@@ -248,6 +253,7 @@ String getInternetTemp()
 	}
 	Serial.print("out: ");
 	Serial.println(out);
+	statusOut += "_wu";
 	return out;
 }
 
@@ -314,8 +320,8 @@ void callCloudSite()
 			client.stop();
 		}
 	}
+	statusOut += "_cl";
 	Serial.println("out: finished reading");
 	Serial.println(cloudurl);
 	return;
 }
-
