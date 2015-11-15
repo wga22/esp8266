@@ -1,4 +1,5 @@
 // Plot DTH11 data on thingspeak.com using an ESP8266 
+//add an LCD http://imaginen4tion.blogspot.com/2015/10/how-to-connect-esp8266-to-lcd-via-i2c.html
 // July 11 2015
 // Author: Will Allen
 /*
@@ -23,7 +24,7 @@ www.arduinesp.com
 // replace with your channel's thingspeak API key, 
 // http://api.wunderground.com/api/13db05c35598dd93/conditions/q/Australia/Sydney.json
 const int buffer=300;
-const char* thinspeakapi = "api.thingspeak.com";
+const char* thingspeakapi = "api.thingspeak.com";
 
 bool resetWifiEachTime = true;
 bool fTesting =false;     //turns off need for DHT11
@@ -31,7 +32,7 @@ bool fDeepSleep = true;
 
 DHT dht(DHTPIN, DHT11, 20);
 WiFiClient client;
-int sleepPerLoopMilliSeconds = 60*1000*60;  //1 hr   
+unsigned long sleepPerLoopSeconds = 60*60;  //60 seconds X 60 minutes = 1 hr   
 //int sleepPerLoopMilliSeconds = 60*1000*1;  //1 min   
 String STATUSSTR="2015-11-12";
 String statusOut = "";
@@ -79,54 +80,73 @@ void loop()
 	if(fDeepSleep)
 	{
 		Serial.print("deep sleeping for (mins)");
-		Serial.println((sleepPerLoopMilliSeconds/(60000)));		
+		Serial.println((sleepPerLoopSeconds/(60)));		
 		//system_deep_sleep_set_option(0);
 		//system_deep_sleep(sleepPerLoop * 1000);	//for some reason the deepsleep is in ms?	
 		//delay(sleepPerLoop);
 		// deepSleep time is defined in microseconds. Multiply
-		// seconds by 1e6 
-		ESP.deepSleep(sleepPerLoopMilliSeconds * 1000);
+		// seconds by 10^6 
+		ESP.deepSleep(sleepPerLoopSeconds * 1000 * 1000);
 	}
 	else
 	{
 		Serial.print("DELAY for (mins)");
-		Serial.println((sleepPerLoopMilliSeconds/(60000)));		
-		delay(sleepPerLoopMilliSeconds);
+		Serial.println((sleepPerLoopSeconds/(60)));		
+		delay(sleepPerLoopSeconds * 1000);
 	}
 }
 
 void callThingSpeak()
 {
+	//set vars
+	String postStr = THINGSPEAK_API;
+
+	//get inputs
+	String viennaTemp = getInternetTemp();
 	float h = dht.readHumidity();
 	float t = dht.readTemperature(true);
-	if (isnan(h) || isnan(t)) 
+
+	
+	//verify data
+	if(isnan(t))
 	{
-		Serial.println("Failed to read from DHT sensor!");
-		if(fTesting)
-		{
-			h=0;
-			t=0;
-		}
-		else
-		{
-			Serial.println("Failed to read from DHT sensor! - aborting loop");
-			return;
-		}
+		Serial.println("Failed to read from DHT sensor (temp)!");
+		statusOut += "_errT";
 	}
-	String viennaTemp = getInternetTemp();
-	if (client.connect(thinspeakapi,80)) 
-	{  //   "184.106.153.149" or api.thingspeak.com
-		statusOut += "_tp";
-		String postStr = THINGSPEAK_API;
+	else
+	{
+		Serial.print("Temperature(f): ");
+		Serial.println(t);
 		postStr +="&field1=";
 		postStr += String(t);
+	}
+
+	if (isnan(h)) 
+	{
+		Serial.println("Failed to read from DHT sensor(humidity)!");
+		h=-100;
+		statusOut += "_errH";
+	}
+	else
+	{
+		Serial.print("Humidity(%): "); 
+		Serial.println(h);
 		postStr +="&field2=";
 		postStr += String(h);
-		if(viennaTemp!="-100")
-		{
-			postStr += "&field3=";
-			postStr += viennaTemp;
-		}
+	}
+
+	if(viennaTemp!="-100")
+	{
+		postStr += "&field3=";
+		postStr += viennaTemp;
+		Serial.print("Temperature(f) in Vienna: ");
+		Serial.println(viennaTemp);
+	}
+
+	//write/post data to thingspeak
+	if (client.connect(thingspeakapi,80)) 
+	{  //   "184.106.153.149" or api.thingspeak.com
+		statusOut += "_tp";
 		postStr += "&status=";
 		postStr += statusOut;
 		postStr += "\r\n\r\n";
@@ -142,13 +162,7 @@ void callThingSpeak()
 		client.print("\n\n"); 
 		client.print(postStr);
 
-		Serial.print("Temperature: ");
-		Serial.print(t);
-		Serial.print(" degrees fahrenheit Humidity: "); 
-		Serial.print(h);
-		Serial.print(" internet temp: "); 
-		Serial.print(viennaTemp);
-		Serial.println("% send to Thingspeak");
+		Serial.println("Send to Thingspeak");
 	}
 }
 
