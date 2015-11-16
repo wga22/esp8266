@@ -34,22 +34,15 @@ DHT dht(DHTPIN, DHT11, 20);
 WiFiClient client;
 unsigned long sleepPerLoopSeconds = 60*60;  //60 seconds X 60 minutes = 1 hr   
 //int sleepPerLoopMilliSeconds = 60*1000*1;  //1 min   
-String STATUSSTR="2015-11-12";
+String STATUSSTR="2015-11-16";
 String statusOut = "";
 
 void setup() 
 { 
 	Serial.begin(115200);
-	if(fTesting)
-	{
-		Serial.println("waiting for power to stabilize - 30 secs");
-		delay(.5*1000*60);  //30 seconds
-	}
-	else
-	{
-		Serial.println("waiting for power to stabilize - 5 mins");
-		delay(.5*1000*60);  //.5 mins
-	}
+	Serial.println("waiting for power to stabilize - 30 secs");
+	delay(.5*1000*60);  //30 seconds
+
 	//delay(0.1*1000*60);  //.1 mins
 	dht.begin();
 	if (!resetWifiEachTime || fDeepSleep)
@@ -105,7 +98,6 @@ void callThingSpeak()
 	String viennaTemp = getInternetTemp();
 	float h = dht.readHumidity();
 	float t = dht.readTemperature(true);
-
 	
 	//verify data
 	if(isnan(t))
@@ -124,7 +116,6 @@ void callThingSpeak()
 	if (isnan(h)) 
 	{
 		Serial.println("Failed to read from DHT sensor(humidity)!");
-		h=-100;
 		statusOut += "_errH";
 	}
 	else
