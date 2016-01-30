@@ -34,7 +34,7 @@ DHT dht(DHTPIN, DHT11, 20);
 WiFiClient client;
 unsigned long sleepPerLoopSeconds = 60*60;  //60 seconds X 60 minutes = 1 hr   
 //int sleepPerLoopMilliSeconds = 60*1000*1;  //1 min   
-String STATUSSTR="2015-11-16";
+String STATUSSTR="2016-01-28";
 String statusOut = "";
 
 void setup() 
@@ -60,15 +60,9 @@ void loop()
 	statusOut = STATUSSTR;
 	//call this site each hour to keep it from idling
 	callCloudSite();
-	
+	//load data for thingspeak, and post it
 	callThingSpeak();
-
 	client.stop();
-
-	if(resetWifiEachTime && !fDeepSleep)
-	{
-		WiFi.disconnect();
-	}
 	// thingspeak needs minimum 15 sec delay between updates
 	if(fDeepSleep)
 	{
@@ -83,6 +77,10 @@ void loop()
 	}
 	else
 	{
+		if(resetWifiEachTime)
+		{
+			WiFi.disconnect();
+		}
 		Serial.print("DELAY for (mins)");
 		Serial.println((sleepPerLoopSeconds/(60)));		
 		delay(sleepPerLoopSeconds * 1000);
@@ -152,15 +150,15 @@ void callThingSpeak()
 		client.print(postStr.length()); 
 		client.print("\n\n"); 
 		client.print(postStr);
-
 		Serial.println("Send to Thingspeak");
 	}
-}
-
-void turnOff(int pin) 
-{
-  pinMode(pin, OUTPUT);
-  digitalWrite(pin, 1);
+	else
+	{
+		//um, there was a problem posting to TP, so this status will never be seen, but oh well.
+		statusOut += "_errtp";
+		Serial.println("Send to Thingspeak didn't connect");
+		Serial.println(statusOut);
+	}
 }
 
 void startWifi()
@@ -172,14 +170,25 @@ void startWifi()
 	Serial.println(WIFI_SSID);
 
 	WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-
-	while (WiFi.status() != WL_CONNECTED) 
+	int nTries = 100;
+	while (WiFi.status() != WL_CONNECTED && nTries > 0) 
 	{
-		delay(500);
+		delay(1000);
 		Serial.print(".");
+		nTries--;
 	}
-	Serial.println("");
-	Serial.println("WiFi connected");
+	if(nTries==0)
+	{
+		Serial.println("Could not connect to WIFI!");
+		Serial.println(WIFI_SSID);
+		delay(20000);
+		WiFi.disconnect();
+		startWifi();
+	}
+	else
+	{
+		Serial.println("WiFi connected");
+	}
 }
 
 String getInternetTemp()
@@ -206,22 +215,23 @@ String getInternetTemp()
 		client.println("Connection: close");
 		client.println();
 
-		//Wait up to 10 seconds for server to respond then read response
-		int pp=0;
-		while((!client.available()) && (pp<500))
+		//Wait up to 20 seconds for server to respond then read response
+		int pp=20;
+		while((!client.available()) && (pp>0))
 		{
-			delay(20);
-			pp++;
+			delay(1000);
+			pp--;
 		}
-		if(pp==500)
+		if(pp==0)
 		{
 			Serial.println("there was an issue pulling from the stream");
+			statusOut += "_wuerr1";
 		}
 		const char* fieldName = "\"temp_f\":";		//string wont work
 		Serial.print("looking for: ");
 		Serial.println(fieldName);
 		int x = 2000;  //limit tries
-		for(; !client.find(fieldName) && x>0; x--){} // find the part we are interested in.
+		for(; (!client.find(fieldName) && x>0); x--){} // find the part we are interested in.
 		if(x==0) 
 		{
 			Serial.println("we never found the field");
@@ -246,17 +256,21 @@ String getInternetTemp()
 			}
 		}
 		Serial.println("finished reading");
-	// if the server's disconnected, stop the client:
+		// if the server's disconnected, stop the client:
 		if (!client.connected()) 
 		{
 			Serial.println();
 			Serial.println("disconnecting from server.");
 			client.stop();
 		}
+		statusOut += "_wu";
+	}
+	else
+	{
+		statusOut += "_wuerr2";
 	}
 	Serial.print("out: ");
 	Serial.println(out);
-	statusOut += "_wu";
 	return out;
 }
 
@@ -294,16 +308,16 @@ void callCloudSite()
 		client.println();
 
 		//Wait up to 50 seconds for server to respond then read response
-		int pp=0;
-		while((!client.available()) && (pp<50))
+		int pp=50;
+		while((!client.available()) && (pp>0))
 		{
 			delay(1000);
-			pp++;
+			pp--;
 		}
-		if(pp==50)
+		if(pp==0)
 		{
 			Serial.println("there was an issue pulling from the stream");
-			statusOut+="_errcp";
+			statusOut+="_errcp1";
 		}
 		int i=0;
 		while (i<6000) 
@@ -322,9 +336,19 @@ void callCloudSite()
 			Serial.println("disconnecting from server.");
 			client.stop();
 		}
+		statusOut += "_cl";
 	}
-	statusOut += "_cl";
+	else
+	{
+		statusOut+="_errcp2";
+	}
 	Serial.println("out: finished reading");
 	Serial.println(cloudurl);
 	return;
+}
+
+void turnOff(int pin) 
+{
+  pinMode(pin, OUTPUT);
+  digitalWrite(pin, 1);
 }
