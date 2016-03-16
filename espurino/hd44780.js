@@ -1,5 +1,8 @@
 /* Copyright (c) 2013 Gordon Williams, Pur3 Ltd. See the file LICENSE for copying permission. */
 /* 
+
+http://www.espruino.com/HD44780
+
 Module for the HD44780 controller in text-based LCDs (pretty much all 16x2 and 20x4 LCDs)
 
 If you have one of the LCDs with an I2C backpack, just use:
