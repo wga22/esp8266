@@ -192,3 +192,52 @@ void loop() {
   // thingspeak needs minimum 15 sec delay between updates
   delay(sleepPerLoop);  
 }
+
+
+
+
+{
+  "response": 
+  {
+	  "version":"0.1",
+	  "termsofService":"http://www.wunderground.com/weather/api/d/terms.html",
+	  "features": {	  "astronomy": 1  }
+  }
+  ,	"moon_phase": 
+	{
+		"percentIlluminated":"4",
+		"ageOfMoon":"28",
+		"phaseofMoon":"Waning Crescent",
+		"hemisphere":"North",
+		"current_time": {
+		"hour":"17",
+		"minute":"41"
+		},
+		"sunrise": {
+		"hour":"6",
+		"minute":"46"
+		},
+		"sunset": {
+		"hour":"19",
+		"minute":"36"
+		},
+		"moonrise": {
+		"hour":"5",
+		"minute":"40"
+		},
+		"moonset": {
+		"hour":"17",
+		"minute":"42"
+		}
+	},
+	"sun_phase": {
+		"sunrise": {
+		"hour":"6",
+		"minute":"46"
+		},
+		"sunset": {
+		"hour":"19",
+		"minute":"36"
+		}
+	}
+}
