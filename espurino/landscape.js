@@ -1,5 +1,5 @@
 var nPageLoads = 0;
-var sVersion = '9';
+var sVersion = '10';
 var weather = {};
 var sWeather = "";
 var SURLAPI = 'http://api.wunderground.com/api/13db05c35598dd93/astronomy/q/va/vienna.json';
@@ -12,6 +12,7 @@ var favicon = "\x89PNG\r\n\32\n\0\0\0\rIHDR\0\0\0\20\0\0\0\20\10\3\0\0\0(-\17S\0
 
 function onInit()
 {
+  setTimeout(initializeLights, 5500);
   setTimeout(getWeather, 1100);  //wait o call out and get latest weather
   setTimeout(startWebserver, 10000); // wait, then start the webserver
   setTimeout(setSnTP, 20000); // pause to allow sync up
@@ -100,6 +101,11 @@ function turnOffLights()
   setTimeout(getWeather, nSleepTilMorning);
 }
 
+function initializeLights()
+{
+  setPin(false);
+}
+
 function setPin(fSet)
 {
   fIsOn = fSet;
@@ -143,16 +149,23 @@ function getPage(req,res)
         res.write('<html><head></head><body><ul>Turning Light off</ul></body></html>');
         break;
       }
+      case "/toggle":
+      {
+        setPin(!fIsOn);
+        res.writeHead(200, {'Content-Type': 'text/html'});
+        res.write('<html><head></head><body><ul>Turning Light <b>'+(fIsOn ? 'On' : 'off')+'</b></ul></body></html>');
+        break;
+      }
     default: 
       var dDate = new Date(nSleep);
-      var sContent = "<h2>Welcome to landscape light timer</h2>";
-      sContent += "<li>This is how long system is sleeping til next change: " + (dDate.toUTCString()) + " " + nSleep;
+      var sContent = "<h2>Welcome to landscape light timer (V"+sVersion+")</h2>";
+      sContent += "<li>Sleeping ("+(nSleep / nMilisPerHour)+") until "+ (dDate.toUTCString()) + " ";
       sContent += "<li>System time: " + (new Date()).toUTCString();
       try
       {
-        sContent += "<li>Current Time: " + weather.moon_phase.current_time.hour 
+        sContent += "<li>Weather loaded: " + weather.moon_phase.current_time.hour 
           + ":" + weather.moon_phase.current_time.minute + "</li>";
-        sContent += "<li>Sunset Time: " + weather.moon_phase.sunset.hour 
+        sContent += "<li>Sunset: " + weather.moon_phase.sunset.hour 
         + ":" + weather.moon_phase.sunset.minute + "</li>";
       }
       catch(e)
