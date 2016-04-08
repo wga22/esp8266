@@ -1,5 +1,16 @@
+/*
+	Title / Purpose: Control ATX power supply to run a landscape light
+	Author: Will.allen%%gmail.com
+	TODO: 
+		rename global variables (or put into a hashmap?)
+		implement reset / deepsleep?
+	Created: April 2016
+	Modified:
+	REQUIRED:  Must have set all wifi properties manually on your Esprunio (tested on version 1.84)
+*/
+
 var nPageLoads = 0;
-var sVersion = '13 (2016-04-08)';
+var sVersion = 'V15 (2016-04-08) - by Will Allen';
 var weather = {};
 var sWeather = "";
 var SURLAPI = 'http://api.wunderground.com/api/13db05c35598dd93/astronomy/q/va/vienna.json';
@@ -23,6 +34,7 @@ function initializeLightingSystem()
 	setPin(false);
 	setSnTP();
 	startWebserver();
+	require("ESP8266").setCPUFreq(80);	//save power?
 }
 
 
@@ -113,7 +125,8 @@ function turnOffLights()
 
 function dateString(a_dDate)
 {
-	return a_dDate.toUTCString()
+	var aMonths = ['Jan','Feb','Mar','Apr','May','June','July','Aug','Sep','Oct','Nov','Dec'];
+	return aMonths[a_dDate.getMonth()] + "/" + a_dDate.getDate() + " " + (a_dDate.getHours()) + ":" + a_dDate.getMinutes();
 }
 
 function setMode(a_sMode, a_sSleepDuration)
@@ -151,51 +164,56 @@ function getPage(req,res)
       {
         res.writeHead(200, {'Content-Type': 'image/x-icon'});
         res.write(favicon);
+		res.end();
+		return;
         break;
       }
      case "/on":
       {
         setPin(true);
-        res.writeHead(200, {'Content-Type': 'text/html'});
-        res.write('<html><head></head><body><ul>Turning Light <b>on</b></ul></body></html>');
         break;
       }
       case "/off":
       {
         setPin(false);
-        res.writeHead(200, {'Content-Type': 'text/html'});
-        res.write('<html><head></head><body><ul>Turning Light off</ul></body></html>');
-        break;
+		break;
       }
       case "/toggle":
       {
         setPin(!fIsOn);
-        res.writeHead(200, {'Content-Type': 'text/html'});
-        res.write('<html><head></head><body><ul>Turning Light <b>'+(fIsOn ? 'On' : 'off')+'</b></ul></body></html>');
-        break;
+		break;
       }
-    default: 
-		var sContent = "<h2>Welcome to landscape light timer (V"+sVersion+")</h2>";
-		sContent += '<li>The system status is:' + sMode;
-		sContent += '<li>The light is:' + (fIsOn ? "ON" : "OFF");
-		sContent += '<li>System time: ' + (new Date()).toUTCString();
-		sContent += '<li>WebPage lods:' + (nPageLoads++)
-		try
-		{
-			sContent += "<li>Weather loaded: " + weather.moon_phase.current_time.hour 
-				+ ":" + weather.moon_phase.current_time.minute + "</li>";
-			sContent += "<li>Sunset: " + weather.moon_phase.sunset.hour 
-				+ ":" + weather.moon_phase.sunset.minute + "</li>";
-		}
-		catch(e)
-		{
-			sContent += "<li><b>Issue loading the weather data or not yet available</b>";
-		}
-		res.writeHead(200, {'Content-Type': 'text/html'});
-		res.write('<html><head>'+
-			'</head><body><ul>'+ sContent +'</ul></body></html>');
-  }
-  res.end();
+      case "/status":
+      {
+		break;
+      }
+	}
+	var sContent = "<h2>Welcome to landscape light timer ("+sVersion+")</h2>";
+	sContent += '<li><b>system status</b>:' + sMode;
+	sContent += '<li><b>Light</b> is ' + (fIsOn ? "ON" : "OFF");
+	sContent += '<li><b>System time</b>: ' + (new Date()).toUTCString();
+	sContent += '<li><b>WebPage loads</b>:' + (nPageLoads++)
+	try
+	{
+		sContent += "<li><b>Sunset data was loaded</b>: " + weather.moon_phase.current_time.hour 
+			+ ":" + weather.moon_phase.current_time.minute + "</li>";
+		sContent += "<li><b>Sunset</b>: " + weather.moon_phase.sunset.hour 
+			+ ":" + weather.moon_phase.sunset.minute + "</li>";
+	}
+	catch(e)
+	{
+		sContent += "<li><b>Issue loading the weather data or not yet available</b>";
+	}
+	sContent += '<table style="width:90%"><tr>'
+	sContent += '<td><button type="button" onclick="document.location=\'/on\'">Lights On</button></td>';
+	sContent += '<td><button type="button" onclick="document.location=\'/off\'">Lights Off</button></td>';
+	sContent += '<td><button type="button" onclick="document.location=\'/toggle\'">Toggle</button></td>';
+	//sContent += '<td><button type="button" onclick="document.location=\'/status\'">Status</button></td>';
+	sContent += '</tr></table>'
+	//sContent += '<p/><p/><p/><pre>'+(JSON.stringify((require("ESP8266").getState())))+'</pre>';
+	res.writeHead(200, {'Content-Type': 'text/html'});
+	res.write('<html><body><ul>'+ sContent +'</ul></body></html>');
+	res.end();
 }
 
 onInit();
