@@ -59,7 +59,7 @@ function setBootTime()
 	}
 	else
 	{
-		nMaxRetriesForGetInitDate = 0;
+		nMaxRetriesForGetInitDate = 30;
 		dBootTime = systDate;
 	}
 }
