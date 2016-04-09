@@ -10,7 +10,7 @@
 */
 
 var nPageLoads = 0;
-var sVersion = 'V15 (2016-04-08) - by Will Allen';
+var sVersion = 'V16 (2016-04-09) - by Will Allen';
 var weather = {};
 var sWeather = "";
 var SURLAPI = 'http://api.wunderground.com/api/13db05c35598dd93/astronomy/q/va/vienna.json';
@@ -31,10 +31,10 @@ function onInit()
 function initializeLightingSystem()
 {
 	setMode("initializing System", 2000);
-	setPin(false);
-	setSnTP();
-	startWebserver();
 	require("ESP8266").setCPUFreq(80);	//save power?
+	setPin(false);	//turn off the light
+	setSnTP();	//set the time server (not actually used?)
+	startWebserver();
 }
 
 
@@ -69,9 +69,10 @@ function getWeather()
       //console.log(">>>>" + wunderString + "<<<<");
       weather = JSON.parse( sWeather);
       sWeather = "";
-      sleepTilSunset();
+      sleepTilSunset();	//wait until you get the weather, then sleep until the sunset
     });
   });
+  //what to do if didnt get?
 }
 
 function sleepTilSunset()
@@ -85,7 +86,7 @@ function sleepTilSunset()
 			//add 15 minutes from sunset
 			var nMinutesTilSS = weather.moon_phase.sunset.minute - weather.moon_phase.current_time.minute + 15;
 			var nSleepTime = (nHoursTilSunset*nMilisPerHour) + (nMinutesTilSS*60000);
-			setMode("sleeping until sunset", nMilisForLights);
+			setMode("sleeping until sunset", "Turn on lights", nMilisForLights);
 			setTimeout(turnOnLights, nSleepTime);
         }
 		//should lights be on?
@@ -101,9 +102,18 @@ function sleepTilSunset()
       }
       catch(e)
       {
-        console.log("there was an issue reading the weather data:" + e);
-        turnOffLights(); //sleep 12 hrs, then try again tomorrow
-        //setTimeout(sleepTilSunset, (nMilisPerHour));  //try again in 1 hr
+		console.log("there was an issue reading the weather data:" + e);
+        //try using the system time
+		var nSystemSleepTime= getMillisTilSunsetFromSystem();
+		if(nSystemSleepTime > 0)
+		{
+			setMode("sleeping until sunset (manual)", "Turn on lights", nSystemSleepTime);
+			setTimeout(turnOnLights, nSystemSleepTime);
+		}
+		else  //even system time didnt work, so try again in 12 hrs
+		{
+			turnOffLights("sys and wunder fail");
+		}
       }
 }
 
@@ -111,30 +121,30 @@ function turnOnLights()
 {
   setPin(true);
   var nMilisForLights = durationForLights*nMilisPerHour
-  setMode("after sunset, running lights", nMilisForLights);
+  setMode("after sunset, running lights", "Turn off Lights", nMilisForLights);
   setTimeout(turnOffLights, (nMilisForLights));
 }
 
-function turnOffLights()
+function turnOffLights(sMessage)
 {
   setPin(false);
   var nSleepTilMorning = (12*nMilisPerHour);
-  setMode("Lights off", nSleepTilMorning);
+  setMode(("Lights off" + (sMessage ? sMessage : "")), "Get Weather", nSleepTilMorning);
   setTimeout(getWeather, nSleepTilMorning);
 }
 
 function dateString(a_dDate)
 {
 	var aMonths = ['Jan','Feb','Mar','Apr','May','June','July','Aug','Sep','Oct','Nov','Dec'];
-	return aMonths[a_dDate.getMonth()] + "/" + a_dDate.getDate() + " " + (a_dDate.getHours()) + ":" + a_dDate.getMinutes();
+	return aMonths[a_dDate.getMonth()] + " " + a_dDate.getDate() + " " + (a_dDate.getHours()) + ":" + a_dDate.getMinutes();
 }
 
-function setMode(a_sMode, a_sSleepDuration)
+function setMode(a_sMode, a_sNext , a_sSleepDuration)
 {
   //set global variable with the date that next action happens
   var nSleepToDateMillis = (new Date()).getTime() + a_sSleepDuration;
   // set global variable indicating what system is currently doing
-  sMode = dateString(new Date()) + ": " + a_sMode + "  (next action: " + (dateString(new Date(nSleepToDateMillis))) + ')';
+  sMode = dateString(new Date()) + ": " + a_sMode + " (Next action: " +a_sNext + " " + (dateString(new Date(nSleepToDateMillis))) + ')';
   //log out what is going on
   console.log(sMode); 
 }
@@ -189,9 +199,9 @@ function getPage(req,res)
       }
 	}
 	var sContent = "<h2>Welcome to landscape light timer ("+sVersion+")</h2>";
-	sContent += '<li><b>system status</b>:' + sMode;
+	sContent += '<li><b>System time</b>: ' + dateString(new Date());
+	sContent += '<li><b>Status</b>:' + sMode;
 	sContent += '<li><b>Light</b> is ' + (fIsOn ? "ON" : "OFF");
-	sContent += '<li><b>System time</b>: ' + (new Date()).toUTCString();
 	sContent += '<li><b>WebPage loads</b>:' + (nPageLoads++)
 	try
 	{
@@ -214,6 +224,28 @@ function getPage(req,res)
 	res.writeHead(200, {'Content-Type': 'text/html'});
 	res.write('<html><body><ul>'+ sContent +'</ul></body></html>');
 	res.end();
+}
+
+function getMillisTilSunsetFromSystem()
+{
+	var dSysDate = new Date();
+	var nMillis = -1;  // -1 means sunset has either passed, or system time not set
+	if(dSysDate.getFullYear() > 2000)
+	{
+		//ignore DST
+		var aSunsetTimesForMonth = [17,18,18, 18, 19, 19,19,19,18,18,18,17 ];
+		var nCurrentHour = dSysDate.getHours();
+		var nSunsetTime = aSunsetTimesForMonth[dSysDate.getMonth()];
+		if(nCurrentHour < nSunsetTime)
+		{
+			nMillis = nMilisPerHour * (nSunsetTime -nCurrentHour );
+		}
+	}
+	else  //sysdate not set, so nothing we can do!
+	{
+		console.log("Unable to get system date: " + dSysDate.toUTCString());
+	}
+	return nMillis;
 }
 
 onInit();
