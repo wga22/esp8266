@@ -86,7 +86,7 @@ function sleepTilSunset()
 			//add 15 minutes from sunset
 			var nMinutesTilSS = weather.moon_phase.sunset.minute - weather.moon_phase.current_time.minute + 15;
 			var nSleepTime = (nHoursTilSunset*nMilisPerHour) + (nMinutesTilSS*60000);
-			setMode("sleeping until sunset", "Turn on lights", nMilisForLights);
+			setMode("sleeping until sunset", "Turn on lights", nSleepTime);
 			setTimeout(turnOnLights, nSleepTime);
         }
 		//should lights be on?
