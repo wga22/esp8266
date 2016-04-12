@@ -49,7 +49,7 @@ function setTimeManually()
 	{
 		require("http").get(SURLAPI2, function(res) 
 		{
-			res.on('data', function(wunderString) {(sWeather += wunderString)});
+			res.on('data', function(wunderString) {(sWeather += wunderString);});
 			res.on('close', function(fLoaded) 
 			{
 				var oDateData = JSON.parse( sWeather);
@@ -84,7 +84,7 @@ function setBootTime()
 		return;  //just to be safe, end of the road
 	}
 	//tried max tries, still no date
-	else if(nMaxRetriesForGetInitDate == 0)
+	else if(nMaxRetriesForGetInitDate === 0)
 	{
 		setTimeManually();
 		nMaxRetriesForGetInitDate = 30;
