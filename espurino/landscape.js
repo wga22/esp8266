@@ -10,7 +10,7 @@
 */
 
 var nPageLoads = 0;
-var sVersion = 'V19 (2016-04-10) - by Will Allen';
+var sVersion = 'V20 (2016-04-22) - by Will Allen';
 var oWeather = {};
 var sWeather = "";
 var SURLAPI = 'http://api.wunderground.com/api/13db05c35598dd93/astronomy/q/va/vienna.json';
@@ -23,6 +23,9 @@ var sMode = "nothing";
 var PINOUT = D2;
 var dBootTime = new Date();
 var nMaxRetriesForGetInitDate = 30;
+var HTTP = require("http");
+var ESP8266 = require("ESP8266");
+var WIFI = require("Wifi");
 
 function onInit()
 {
@@ -32,8 +35,8 @@ function onInit()
 
 function initializeLightingSystem()
 {
-	setMode("initializing System", 2000);
-	require("ESP8266").setCPUFreq(80);	//save power?
+	setMode("initializing System.", 2000);
+	ESP8266.setCPUFreq(80);	//save power?
 	nPageLoads = 0;
 	setPin(false);	//turn off the light
 	setSnTP();	//set the time server (not actually used?)
@@ -47,7 +50,7 @@ function setTimeManually()
 	//look at year, and see if the weather variable is set (probably already stored in the memory)
 	if(systDate.getFullYear() < 2000)
 	{
-		require("http").get(SURLAPI2, function(res) 
+		HTTP.get(SURLAPI2, function(res) 
 		{
 			res.on('data', function(wunderString) {(sWeather += wunderString);});
 			res.on('close', function(fLoaded) 
@@ -59,7 +62,6 @@ function setTimeManually()
 					console.log(oDateData.observation_epoch + " " + ((new Date(oDateData.observation_epoch*1000)).toUTCString()));
 					setTime(oDateData.observation_epoch * 1000);
 				}
-				
 			});
 		});
 	}
@@ -69,7 +71,7 @@ function setSnTP()
 {
 	var sHost = 'us.pool.ntp.org';
 	console.log("set SNTP:" + sHost);
-	require("Wifi").setSNTP(sHost, -5);
+	WIFI.setSNTP(sHost, -5);
 	setTimeout(setBootTime, 5000);
 }
 
@@ -99,16 +101,15 @@ function setBootTime()
 
 function startWebserver()
 {
- // require("Wifi").setSNTP('us.pool.ntp.org', -5);
   console.log("startWebserver");
-  require("http").createServer(getPage).listen(80);  
+  HTTP.createServer(getPage).listen(80);  
 }
 
 //populate the weather variable with the sunset, etc
 function getWeather()
 {
   setMode("getting Weather", 2000);
-  require("http").get(SURLAPI, function(res) 
+  HTTP.get(SURLAPI, function(res) 
    {
     res.on('data', function(wunderString) {   sWeather += wunderString;   });
     res.on('close', function(fLoaded) 
@@ -183,13 +184,13 @@ function turnOffLights(sMessage)
 function dateString(a_dDate)
 {
 	var aMonths = ['Jan','Feb','Mar','Apr','May','June','July','Aug','Sep','Oct','Nov','Dec'];
-	return aMonths[a_dDate.getMonth()] + " " + a_dDate.getDate() + " " + (a_dDate.getHours()) + ":" + a_dDate.getMinutes();
+	return aMonths[a_dDate.getMonth()] + " " + (a_dDate.getDate()) + " " + (a_dDate.getHours()) + ":" + (fixMinutes(a_dDate.getMinutes()));
 }
 
 function setMode(a_sMode, a_sNext , a_sSleepDuration)
 {
   //set global variable with the date that next action happens
-  var nSleepToDateMillis = (new Date()).getTime() + a_sSleepDuration;
+  var nSleepToDateMillis = ((new Date()).getTime()) + a_sSleepDuration;
   // set global variable indicating what system is currently doing
   sMode = dateString(new Date()) + ": " + a_sMode + " (Next action: " +a_sNext + " " + (dateString(new Date(nSleepToDateMillis))) + ')';
   //log out what is going on
@@ -217,29 +218,22 @@ function getPage(req,res)
 {
 	console.log("URL requested: " + req.url);
 	nPageLoads++;
-	switch(req.url)
+	if(req.url ==  "/on")
 	{
-		case "/on":
-		{
-			setPin(true);
-			break;
-		}
-		case "/off":
-		{
-			setPin(false);
-			break;
-		}
-		case "/toggle":
-		{
-			setPin(!fIsOn);
-			break;
-		}
-		case "/reset":
-		{
-			setTimeManually();
-			getWeather();
-			break;
-		}
+		setPin(true);
+	}
+	else if(req.url ==  "/off")
+	{
+		setPin(false);
+	}
+	else if(req.url ==  "/toggle")
+	{
+		setPin(!fIsOn);
+	}
+	else if(req.url == "/reset")
+	{
+		setTimeManually();
+		getWeather();
 	}
 	var sContent = "<h2>Welcome to landscape light timer ("+sVersion+")</h2>";
 	sContent +="<ul>";
@@ -260,21 +254,45 @@ function getPage(req,res)
 	}
 	if(req.url == "/status")
 	{
-		sContent += '<li><b>WebPage loads</b>:' + (nPageLoads)
+		sContent += '<li><b>WebPage loads</b>:' + (nPageLoads);
 		//sContent += '<li><b>Init called</b>:' + "";
 		sContent += '<li><b>Boot Time</b>:' + dBootTime.toUTCString();
-		sContent += '<li><b>ESP debug:</b>'+(JSON.stringify((require("ESP8266").getState())))+'</ul>';
+		try
+		{
+			sContent += '<li><b>ESP debug:</b>'+ (JSON.stringify((ESP8266.getState()))) +'</ul>';
+		}
+		catch(e)
+		{
+			sContent +='<li><b>Issue getting ESP8266 status</b></li>';
+		}
 	}
 	sContent +="</ul>";
-	sContent += '<table style="width:90%"><tr>'
+	sContent += '<table style="width:90%"><tr>';
 	sContent += '<td><button type="button" onclick="document.location=\'/on\'">Lights On</button></td>';
 	sContent += '<td><button type="button" onclick="document.location=\'/off\'">Lights Off</button></td>';
 	sContent += '<td><button type="button" onclick="document.location=\'/toggle\'">Toggle</button></td>';
 	sContent += '<td><button type="button" onclick="document.location=\'/status\'">Status</button></td>';
-	sContent += '</tr></table>'
+	sContent += '</tr></table>';
 	res.writeHead(200, {'Content-Type': 'text/html'});
 	res.write('<html><head><link rel="icon" type="image/png" href="http://i.imgur.com/87R4ig5.png"></head><body>'+ sContent +'</body></html>');
 	res.end();
+}
+
+function fixMinutes(nMins)
+{
+	var sMins = '00';
+	if(nMins)
+	{
+		if(nMins < 10)
+		{
+			sMins = '0' + nMins;
+		}
+		else
+		{
+			sMins = nMins;
+		}
+	}
+	return sMins;
 }
 
 function getMillisTilSunsetFromSystem()
