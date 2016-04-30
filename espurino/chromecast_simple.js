@@ -13,24 +13,29 @@
 	https://github.com/espruino/Espruino/wiki/Generic-WiFi-Design
 	http://www.espruino.com/ESP8266_WifiUsage
 	
-	//var wifi = require("Wifi");
-	wifi.getAPDetails();
-	wifi.startAP("will", {password:"password", authMode:"wpa2", savedSsid:"will"});
-	wifi.getAPIP();
-	wifi.startAP("landscape");	//open, no password needed
-	wifi.scan(function(s){console.log(s)});
+	//var WIFI = require("Wifi");
+	WIFI.getAPDetails();
+	WIFI.startAP("will", {password:"password", authMode:"wpa2", savedSsid:"will"});
+	WIFI.getAPIP();
+	WIFI.startAP("landscape");	//open, no password needed
+	WIFI.scan(function(s){console.log(s)});
 	
 	//var HTTP = require("http");
 	//var ESP8266 = require("ESP8266");
-	//var wifi = require("Wifi");
-	wifi.getAPDetails();
-	wifi.startAP("will", {password:"password", authMode:"wpa2", savedSsid:"will"});
-	wifi.getAPIP();
+	//var WIFI = require("Wifi");
+	WIFI.getAPDetails();
+	WIFI.startAP("will", {password:"password", authMode:"wpa2", savedSsid:"will"});
+	WIFI.getAPIP();
 
 	//https://github.com/tzapu/WiFiManager
+
+var HTTP = require("http");
+var ESP8266 = require("ESP8266");
+var WIFI = require("Wifi");	
+
 */
 
-var STITLE = "Landscape Timer by Will Allen";
+
 var HTTP_HEAD         = "<!DOCTYPE html><html lang=\"en\"><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, user-scalable=no\"/><link rel=\"icon\" type=\"image/png\" href=\"http://i.imgur.com/87R4ig5.png\">";
 var HTTP_STYLE         = "<style>.c{text-align: center;} div,input{padding:5px;font-size:1em;} input{width:95%;} body{text-align: center;font-family:verdana;} button{border:0;border-radius:0.3rem;background-color:#1fa3ec;color:#fff;line-height:2.4rem;font-size:1.2rem;width:100%;} .q{float: right;width: 64px;text-align: right;} .l{background: url(\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAALVBMVEX///8EBwfBwsLw8PAzNjaCg4NTVVUjJiZDRUUUFxdiZGSho6OSk5Pg4eFydHTCjaf3AAAAZElEQVQ4je2NSw7AIAhEBamKn97/uMXEGBvozkWb9C2Zx4xzWykBhFAeYp9gkLyZE0zIMno9n4g19hmdY39scwqVkOXaxph0ZCXQcqxSpgQpONa59wkRDOL93eAXvimwlbPbwwVAegLS1HGfZAAAAABJRU5ErkJggg==\") no-repeat left center;background-size: 1em;}</style>";
 var HTTP_SCRIPT       = "<script>function c(l){document.getElementById('s').value=l.innerText||l.textContent;document.getElementById('p').focus();}</script>";
@@ -45,12 +50,9 @@ var HTTP_SAVED         = "<div>Credentials Saved<br />Trying to connect ESP to n
 var HTTP_END          = "</div></body></html>";
 
 var nPageLoads = 0;
+var STITLE = "Landscape Timer by Will Allen";
 var sVersion = 'V1 2016-04-30';
 var nMilisPerHour = 3600000;
-
-//var HTTP = require("http");
-//var ESP8266 = require("ESP8266");
-//var WIFI = require("Wifi");
 
 function onInit()
 {
@@ -92,11 +94,15 @@ function getPage(req,res)
 	{
 		if(oUrl && oUrl.query && oUrl.query.s && oUrl.query.p)
 		{
+			console.log("attempting to connect to " + oUrl.query.s);
 			res.write("<li>Connecting to " + oUrl.query.s+"</li>");
 			//res.write("<li>"+oUrl.query.p+"</li>");
+			//WIFI.connect(oUrl.query.s, {password:oUrl.query.p}, function(ap){ console.log("connected:"+ ap);});
+			//WIFI.save();
 			try
 			{
-				WIFI.connect(oUrl.query.s, {password:oUrl.query.p}, function(ap){ console.log("connected:", ap); WIFI.save();});
+				//WIFI.connect(oUrl.query.s, {password:oUrl.query.p}, function(ap){ console.log("connected:"+ ap); WIFI.save();});
+				WIFI.connect(oUrl.query.s, {password:oUrl.query.p}, function(ap){ console.log("connected:"); WIFI.save();});
 				res.write("<li>successfully connected!</li>");				
 			}
 			catch(e)
@@ -115,17 +121,19 @@ function getPage(req,res)
 	}
 	else
 	{
+		
 		res.write( '<li><b>System time</b>: ' + dateString(new Date()));
 		res.write( '<li><b>Host</b>:' + hostip);
 		res.write( '<li><b>port</b>:' + req.port);
 		res.write( '<li><b>Path</b>:' + req.path);
 		res.write("</ul>");
-		res.write( '<table style="width:90%"><tr>');
-		res.write( '<td><button type="button" onclick="document.location=\'/on\'">Lights On</button></td>');
-		res.write( '<td><button type="button" onclick="document.location=\'/off\'">Lights Off</button></td>');
-		res.write( '<td><button type="button" onclick="document.location=\'/toggle\'">Toggle</button></td>');
-		res.write( '<td><button type="button" onclick="document.location=\'/status\'">Status</button></td>');
-		res.write( '</tr></table>');
+		var sTable = ( '<table style="width:90%"><tr>');
+		sTable += ( '<td><button type="button" onclick="document.location=\'/on\'">Lights On</button></td>');
+		sTable += ( '<td><button type="button" onclick="document.location=\'/off\'">Lights Off</button></td>');
+		sTable += ( '<td><button type="button" onclick="document.location=\'/toggle\'">Toggle</button></td>');
+		sTable += ( '<td><button type="button" onclick="document.location=\'/status\'">Status</button></td>');
+		sTable += ( '</tr></table>');
+		res.write(sTable);
 	}
 	res.write(HTTP_END);
 	res.end();

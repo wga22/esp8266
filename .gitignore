@@ -43,3 +43,5 @@ Temporary Items
 .apdisk
 *.bak
 espurino/landscape_bad.js
+espurino/landscape.html
+espurino/wifimanager.c
