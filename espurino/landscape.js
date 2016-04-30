@@ -10,11 +10,11 @@
 */
 
 var nPageLoads = 0;
-var sVersion = 'V20 (2016-04-22) - by Will Allen';
+var sVersion = 'V21 (2016-04-30) - by Will Allen';
 var oWeather = {};
 var sWeather = "";
-var SURLAPI = 'http://api.wunderground.com/api/13db05c35598dd93/astronomy/q/va/vienna.json';
-var SURLAPI2 = 'http://api.wunderground.com/api/13db05c35598dd93/conditions/q/va/vienna.json';
+var SURLAPI = 'http://api.wunderground.com/api/13db05c35598dd93/astronomy/q/';
+var SURLAPI2 = 'http://api.wunderground.com/api/13db05c35598dd93/conditions/q/';
 var fIsOn = false;
 var nMilisPerHour = 3600000;
 var durationForLights = 5;  //hours
@@ -26,6 +26,7 @@ var nMaxRetriesForGetInitDate = 30;
 var HTTP = require("http");
 var ESP8266 = require("ESP8266");
 var WIFI = require("Wifi");
+var ZIP = '22182';
 
 function onInit()
 {
@@ -39,7 +40,7 @@ function initializeLightingSystem()
 	ESP8266.setCPUFreq(80);	//save power?
 	nPageLoads = 0;
 	setPin(false);	//turn off the light
-	setSnTP();	//set the time server (not actually used?)
+	setTimeManually();
 	startWebserver();
 }
 
@@ -50,7 +51,7 @@ function setTimeManually()
 	//look at year, and see if the weather variable is set (probably already stored in the memory)
 	if(systDate.getFullYear() < 2000)
 	{
-		HTTP.get(SURLAPI2, function(res) 
+		HTTP.get(SURLAPI2 + ZIP + ".json", function(res) 
 		{
 			res.on('data', function(wunderString) {(sWeather += wunderString);});
 			res.on('close', function(fLoaded) 
@@ -59,20 +60,13 @@ function setTimeManually()
 				sWeather = "";
 				if(oDateData && oDateData.observation_epoch)
 				{
-					console.log(oDateData.observation_epoch + " " + ((new Date(oDateData.observation_epoch*1000)).toUTCString()));
-					setTime(oDateData.observation_epoch * 1000);
+					var nMillisCurrentTime = parseInt(oDateData.observation_epoch)*1000;
+					console.log(oDateData.observation_epoch + " " + ((new Date(nMillisCurrentTime)).toUTCString()));
+					setTime(nMillisCurrentTime);
 				}
 			});
 		});
 	}
-}
-
-function setSnTP()
-{
-	var sHost = 'us.pool.ntp.org';
-	console.log("set SNTP:" + sHost);
-	WIFI.setSNTP(sHost, -5);
-	setTimeout(setBootTime, 5000);
 }
 
 //set the initialization time, but has to be after the NTP is successful
@@ -109,7 +103,7 @@ function startWebserver()
 function getWeather()
 {
   setMode("getting Weather", 2000);
-  HTTP.get(SURLAPI, function(res) 
+  HTTP.get(SURLAPI + ZIP + ".json", function(res) 
    {
     res.on('data', function(wunderString) {   sWeather += wunderString;   });
     res.on('close', function(fLoaded) 
@@ -232,8 +226,7 @@ function getPage(req,res)
 	}
 	else if(req.url == "/reset")
 	{
-		//setTimeManually();
-		setSnTP();
+		setTimeManually();
 		getWeather();
 	}
 	var sContent = "<h2>Welcome to landscape light timer ("+sVersion+")</h2>";
