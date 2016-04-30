@@ -132,7 +132,7 @@ function sleepTilSunset()
         if(nHoursTilSunset > 0)
         {
 			//add 15 minutes from sunset
-			var nMinutesTilSS = oWeather.moon_phase.sunset.minute - oWeather.moon_phase.current_time.minute + 15;
+			var nMinutesTilSS = oWeather.moon_phase.sunset.minute - oWeather.moon_phase.current_time.minute + 5;
 			var nSleepTime = (nHoursTilSunset*nMilisPerHour) + (nMinutesTilSS*60000);
 			setMode("sleeping until sunset", "Turn on lights", nSleepTime);
 			setTimeout(turnOnLights, nSleepTime);
@@ -220,11 +220,11 @@ function getPage(req,res)
 	nPageLoads++;
 	if(req.url ==  "/on")
 	{
-		setPin(true);
+		turnOnLights();
 	}
 	else if(req.url ==  "/off")
 	{
-		setPin(false);
+		turnOffLights();
 	}
 	else if(req.url ==  "/toggle")
 	{
@@ -232,7 +232,8 @@ function getPage(req,res)
 	}
 	else if(req.url == "/reset")
 	{
-		setTimeManually();
+		//setTimeManually();
+		setSnTP();
 		getWeather();
 	}
 	var sContent = "<h2>Welcome to landscape light timer ("+sVersion+")</h2>";
