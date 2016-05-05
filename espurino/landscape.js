@@ -44,11 +44,11 @@ function initializeLightingSystem()
 }
 
 //see if time is way off, and try to set with the sunset data (if available)
-function setTimeManually()
+function setTimeManually(fForce)
 {
 	var systDate = new Date();
 	//look at year, and see if the weather variable is set (probably already stored in the memory)
-	if(systDate.getFullYear() < 2000)
+	if(fForce==true || systDate.getFullYear() < 2000)
 	{
 		HTTP.get(SURLAPI2, function(res) 
 		{
@@ -59,6 +59,7 @@ function setTimeManually()
 				sWeather = "";
 				if(oDateData && oDateData.observation_epoch)
 				{
+					//factor of 1000 needed
 					console.log(oDateData.observation_epoch + " " + ((new Date(oDateData.observation_epoch*1000)).toUTCString()));
 					setTime(oDateData.observation_epoch * 1000);
 				}
@@ -67,6 +68,7 @@ function setTimeManually()
 	}
 }
 
+//no longer used, doesnt handle DST, so just use data from wunderground
 function setSnTP()
 {
 	var sHost = 'us.pool.ntp.org';
