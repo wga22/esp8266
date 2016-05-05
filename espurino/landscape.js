@@ -9,23 +9,30 @@
 	REQUIRED:  Must have set all wifi properties manually on your Esprunio (tested on version 1.84)
 */
 
-var nPageLoads = 0;
-var sVersion = 'V20 (2016-04-22) - by Will Allen';
-var oWeather = {};
-var sWeather = "";
-var SURLAPI = 'http://api.wunderground.com/api/13db05c35598dd93/astronomy/q/va/vienna.json';
-var SURLAPI2 = 'http://api.wunderground.com/api/13db05c35598dd93/conditions/q/va/vienna.json';
-var fIsOn = false;
-var nMilisPerHour = 3600000;
-var durationForLights = 5;  //hours
-var nSleepToDateMillis = 0;
-var sMode = "nothing";
-var PINOUT = D2;
-var dBootTime = new Date();
-var nMaxRetriesForGetInitDate = 30;
+//Global requires
 var HTTP = require("http");
 var ESP8266 = require("ESP8266");
 var WIFI = require("Wifi");
+
+//Global Constants / strings
+var PINOUT = D2;
+var nMilisPerHour = 3600000;
+var sVersion = 'V20 (2016-04-22) - by Will Allen';
+var SURLAPI = 'http://api.wunderground.com/api/13db05c35598dd93/astronomy/q/';
+var SURLAPI2 = 'http://api.wunderground.com/api/13db05c35598dd93/conditions/q/';
+
+//Global working variables/settings
+var oWeather = {};
+var sWeather = "";
+var nPageLoads = 0;
+var nMaxRetriesForGetInitDate = 30;
+var fIsOn = false;
+var dBootTime = new Date();
+var ZIP = '22182';
+var durationForLights = 5;  //hours
+var nSleepToDateMillis = 0;
+var sMode = "nothing";
+
 
 function onInit()
 {
@@ -50,7 +57,7 @@ function setTimeManually(fForce)
 	//look at year, and see if the weather variable is set (probably already stored in the memory)
 	if(fForce==true || systDate.getFullYear() < 2000)
 	{
-		HTTP.get(SURLAPI2, function(res) 
+		HTTP.get((SURLAPI2 + ZIP + ".json"), function(res)
 		{
 			res.on('data', function(wunderString) {(sWeather += wunderString);});
 			res.on('close', function(fLoaded) 
@@ -111,7 +118,7 @@ function startWebserver()
 function getWeather()
 {
   setMode("getting Weather", 2000);
-  HTTP.get(SURLAPI, function(res) 
+  HTTP.get((SURLAPI + ZIP + ".json"), function(res) 
    {
     res.on('data', function(wunderString) {   sWeather += wunderString;   });
     res.on('close', function(fLoaded) 
@@ -202,7 +209,6 @@ function setMode(a_sMode, a_sNext , a_sSleepDuration)
 function setPin(fSet)
 {
   fIsOn = fSet;
-//; digitalWrite(D4, 255); for(var x=0; x < 5000; x++){digitalWrite(D4, 0)}; digitalWrite(D4, 255);
   pinMode(PINOUT, "output"); 
   if(fIsOn)
   {
