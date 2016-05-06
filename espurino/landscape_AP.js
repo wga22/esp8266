@@ -11,7 +11,6 @@
 
 //Global requires
 var HTTP = require("http");
-var ESP8266 = require("ESP8266");
 var WIFI = require("Wifi");
 
 //Global Constants / strings
@@ -37,7 +36,7 @@ var NDELAYMINS = 5;
 var durationForLights = 5;  //hours
 var nSleepToDateMillis = 0;
 var sMode = "nothing";
-
+var fLightsStarted = false;
 
 function onInit()
 {
@@ -55,10 +54,24 @@ function initializeLightingSystem()
 
 function checkConnection(oState)
 {
-	if(oState && oState.station && oState.station != "connected")
+	if(oState && oState.station && oState.station != "connected" && oState.ap != "enabled")
 	{
 		console.log("restarting access point!");
 		WIFI.startAP("landscape");
+	}
+	else if(oState && oState.station && oState.station === "connected" && oState.ap === "enabled")
+	{
+		//access point is still enabled, but connected to wifi, so its safe to turn off, and start the nightly process
+		console("turning off AP, and making callout for weather and time");
+		WIFI.stopAP();		//needed for memory reasons!
+	}
+
+	if(oState && oState.station && oState.station === "connected" && oState.ap !== "enabled" && !fLightsStarted)
+	{
+		setTimeout(getWeather, 180000); 
+		setTimeout(setTimeManually, 10000);
+		fLightsStarted = true;
+		console.log("already had conn, starting");
 	}
 }
 //bailout if wifi no longer connected
@@ -72,7 +85,6 @@ function loopToStartAP()
 //see if time is way off, and try to set with the sunset data (if available)
 function setTimeManually(fForce)
 {
-	WIFI.stopAP();	//needed for memory reasons!
 	var systDate = new Date();
 	//look at year, and see if the weather variable is set (probably already stored in the memory)
 	if(fForce===true || systDate.getFullYear() < 2000)
@@ -107,7 +119,6 @@ function startWebserver()
 function getWeather()
 {
   setMode("getting Weather", 2000);
-  WIFI.stopAP();		//needed for memory reasons!
   HTTP.get((SURLAPI + ZIP + ".json"), function(res) 
    {
     res.on('data', function(wunderString) {   sWeather += wunderString;   });
@@ -228,7 +239,6 @@ function getPage(req,res)
 {
 	nPageLoads++;
 	console.log("URL requested: " + req.url);
-	//console.log("host ip: " + hostip);
 	var oUrl = url.parse(req.url, true);
 	
 	res.writeHead(200, {'Content-Type': 'text/html'});
@@ -258,8 +268,6 @@ function getPage(req,res)
 					console.log("connected:"); 
 					WIFI.stopAP();
 					WIFI.save(); 
-					setTimeout(getWeather, 180000); 
-					setTimeout(setTimeManually, 10000);
 					}
 				);
 				//res.write("<li>successfully connected!</li>");				
@@ -291,13 +299,10 @@ function getPage(req,res)
 		}
 		res.write(
 			getHTMLRow('System time', dateString(new Date())) + 
-			getHTMLRow('Host',hostip) + 
-			getHTMLRow('Port',req.port) +
-			getHTMLRow('Path',req.path) +
 			getInputRow('Zip Code','z', ZIP) +
 			getInputRow('Light Duration (hours)','d', durationForLights) + 
 			getInputRow('Delay from Sunset (mins)','m', NDELAYMINS));
-			
+
 		res.write(getHTMLRow(getButton("toggle", ("Turn " + (fIsOn?"Off":"On"))),getButton("status", ("Status"))));
 
 		if(req.url ==  "/toggle")
@@ -312,7 +317,11 @@ function getPage(req,res)
 		//add in status values
 		if(req.url == "/status")
 		{
-			res.write(	getHTMLRow('WebPage loads',nPageLoads) );
+			res.write(getHTMLRow('WebPage loads',nPageLoads) +
+			getHTMLRow('Host',JSON.stringify(WIFI.getIP())) + 
+			getHTMLRow('Port',req.port) +
+			getHTMLRow('Path',req.path)
+				);
 		}
 	}
 	//console.log("URL requested: " + req.url);
