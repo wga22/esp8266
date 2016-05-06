@@ -21,26 +21,17 @@ var STITLE = "Landscape Timer by Will Allen - V22 (2016-05-05)";
 var SURLAPI = 'http://api.wunderground.com/api/13db05c35598dd93/astronomy/q/';
 var SURLAPI2 = 'http://api.wunderground.com/api/13db05c35598dd93/conditions/q/';
 var HTTP_HEAD = "<!DOCTYPE html><html lang=\"en\"><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, user-scalable=no\"/><link rel=\"icon\" type=\"image/png\" href=\"http://i.imgur.com/87R4ig5.png\">";
-var HTTP_STYLE = "<style>.rightCell{} .leftCell{} .c{text-align: center;} div,input{padding:5px;font-size:1em;} input{width:95%;} body{text-align: center;font-family:verdana;} button{border:0;border-radius:0.3rem;background-color:#1fa3ec;color:#fff;line-height:2.4rem;font-size:1.2rem;width:100%;} .q{float: right;width: 64px;text-align: right;} .l{background: url(\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAALVBMVEX///8EBwfBwsLw8PAzNjaCg4NTVVUjJiZDRUUUFxdiZGSho6OSk5Pg4eFydHTCjaf3AAAAZElEQVQ4je2NSw7AIAhEBamKn97/uMXEGBvozkWb9C2Zx4xzWykBhFAeYp9gkLyZE0zIMno9n4g19hmdY39scwqVkOXaxph0ZCXQcqxSpgQpONa59wkRDOL93eAXvimwlbPbwwVAegLS1HGfZAAAAABJRU5ErkJggg==\") no-repeat left center;background-size: 1em;}</style>";
-//TODO: fix for when form isnt always there
-var HTTP_SCRIPT = "<script>function c(l){document.getElementById('s').value=l.innerText||l.textContent;document.getElementById('p').focus();}</script>";
+var HTTP_STYLE = "<style>.rc{fontWeight:bold;text-align:right} .lc{} .c{text-align: center;} div,input{padding:5px;font-size:1em;} input{width:95%;} body{text-align: center;font-family:verdana;} button{border:0;border-radius:0.3rem;background-color:#1fa3ec;color:#fff;line-height:2.4rem;font-size:1.2rem;width:100%;} .q{float: right;width: 64px;text-align: right;} .l{background: url(\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAALVBMVEX///8EBwfBwsLw8PAzNjaCg4NTVVUjJiZDRUUUFxdiZGSho6OSk5Pg4eFydHTCjaf3AAAAZElEQVQ4je2NSw7AIAhEBamKn97/uMXEGBvozkWb9C2Zx4xzWykBhFAeYp9gkLyZE0zIMno9n4g19hmdY39scwqVkOXaxph0ZCXQcqxSpgQpONa59wkRDOL93eAXvimwlbPbwwVAegLS1HGfZAAAAABJRU5ErkJggg==\") no-repeat left center;background-size: 1em;}</style>";
 var HTTP_HEAD_END = "</head><body><div style='text-align:left;display:inline-block;min-width:260px;'>";
 var HTTP_PORTAL_OPTIONS  = "<form action=\"/wifi\" method=\"get\"><button>Configure WiFi</button></form><br/><form action=\"/0wifi\" method=\"get\"><button>Configure WiFi (No Scan)</button></form><br/><form action=\"/i\" method=\"get\"><button>Info</button></form><br/><form action=\"/r\" method=\"post\"><button>Reset</button></form>";
-//var HTTP_ITEM = "<div><a href='#p' onclick='c(this)'>{v}</a>&nbsp;<span class='q {i}'>{r}%</span></div>";
 var HTTP_FORM_START = "<form method='get' action='wifisave'><table>";
-//var HTTP_FORM_PARAM = "<br/><input id='{i}' name='{n}' length={l} placeholder='{p}' value='{v}' {c}>";
-var HTTP_FORM_END = '<tr><td colspan="2"><button type="submit">Save</button></form></td></tr></table>';
-//var HTTP_SCAN_LINK = "<br/><div class=\"c\"><a href=\"/wifi\">Scan</a></div>";
-//var HTTP_SAVED = "<div>Credentials Saved<br />Trying to connect ESP to network.<br />If it fails reconnect to AP to try again</div>";
-var HTTP_END = "</div></body></html>";
+var HTTP_END = '<tr><td colspan="2"><button type="submit">Save</button></form></td></tr></table></div></body></html>';
 
 //Global working variables/settings
 var oWeather = {};
 var sWeather = "";
 var nPageLoads = 0;
-var nMaxRetriesForGetInitDate = 30;
 var fIsOn = false;
-var dBootTime = new Date();
 var ZIP = '22182';
 var NDELAYMINS = 5;
 var durationForLights = 5;  //hours
@@ -51,27 +42,44 @@ var sMode = "nothing";
 function onInit()
 {
 	setTimeout(initializeLightingSystem, 5500);
-	setTimeout(getWeather, 30000);  //wait o call out and get latest weather
 }
 
 function initializeLightingSystem()
 {
 	setMode("initializing System.", 2000);
-	ESP8266.setCPUFreq(80);	//save power?
 	nPageLoads = 0;
 	setPin(false);	//turn off the light
-	setTimeManually();	//set the time server (not actually used?)
 	startWebserver();
+	setTimeout(loopToStartAP, 10000);
 }
+
+function checkConnection(oState)
+{
+	if(oState && oState.station && oState.station != "connected")
+	{
+		console.log("restarting access point!");
+		WIFI.startAP("landscape");
+	}
+}
+//bailout if wifi no longer connected
+function loopToStartAP()
+{
+	WIFI.getStatus(checkConnection);
+	setTimeout(loopToStartAP, nMilisPerHour);//check 1x an hour?
+}
+
 
 //see if time is way off, and try to set with the sunset data (if available)
 function setTimeManually(fForce)
 {
+	WIFI.stopAP();	//needed for memory reasons!
 	var systDate = new Date();
 	//look at year, and see if the weather variable is set (probably already stored in the memory)
 	if(fForce===true || systDate.getFullYear() < 2000)
 	{
-		HTTP.get((SURLAPI2 + ZIP + ".json"), function(res)
+		var sURL = SURLAPI2 + ZIP + ".json";
+		console.log(sURL);
+		HTTP.get((sURL), function(res)
 		{
 			res.on('data', function(wunderString) {(sWeather += wunderString);});
 			res.on('close', function(fLoaded) 
@@ -89,30 +97,6 @@ function setTimeManually(fForce)
 	}
 }
 
-//set the initialization time, but has to be after the NTP is successful
-function setBootTime()
-{
-	var systDate = new Date();
-	//date is still 1970 Jan 1
-	if(systDate.getFullYear() < 2000 && nMaxRetriesForGetInitDate-- > 0)
-	{
-		setTimeout(setBootTime, 5000);
-		return;  //just to be safe, end of the road
-	}
-	//tried max tries, still no date
-	else if(nMaxRetriesForGetInitDate === 0)
-	{
-		setTimeManually();
-		nMaxRetriesForGetInitDate = 30;
-		dBootTime = systDate;
-	}
-	else
-	{
-		nMaxRetriesForGetInitDate = 30;
-		dBootTime = systDate;
-	}
-}
-
 function startWebserver()
 {
   console.log("startWebserver");
@@ -123,6 +107,7 @@ function startWebserver()
 function getWeather()
 {
   setMode("getting Weather", 2000);
+  WIFI.stopAP();		//needed for memory reasons!
   HTTP.get((SURLAPI + ZIP + ".json"), function(res) 
    {
     res.on('data', function(wunderString) {   sWeather += wunderString;   });
@@ -241,7 +226,6 @@ function setPin(fSet)
 //event for webserver
 function getPage(req,res) 
 {
-	var hostip = WIFI.getIP().ip;
 	nPageLoads++;
 	console.log("URL requested: " + req.url);
 	//console.log("host ip: " + hostip);
@@ -250,14 +234,15 @@ function getPage(req,res)
 	res.writeHead(200, {'Content-Type': 'text/html'});
 	res.write(HTTP_HEAD);
 	res.write(HTTP_STYLE);
-	res.write(HTTP_SCRIPT);
 	res.write('<title>'+STITLE+'</title><link rel="icon" type="image/png" href="http://i.imgur.com/87R4ig5.png"/>');
 	res.write(HTTP_HEAD_END + "<h2>Welcome to "+STITLE+"</h2>");
 	res.write(HTTP_FORM_START);
-	//we must be connected via access point, so allow setting WIFI settings
-	//either 0000 or user asking to change setting (wifs)
-	if( hostip == '0.0.0.0' || (oUrl && oUrl.query&& oUrl && (oUrl.query.wifs||oUrl.query.s)))
+
+	//see if connected to an access point...
+	var oWifiStatus = WIFI.getStatus();
+	if( oWifiStatus && oWifiStatus.station && oWifiStatus.station!="connected")
 	{
+		//see if user is submitting AP details
 		if(oUrl && oUrl.query && oUrl.query.s)
 		{
 			console.log("attempting to connect to " + oUrl.query.s);
@@ -267,8 +252,16 @@ function getPage(req,res)
 			//WIFI.save();
 			try
 			{
-				//WIFI.connect(oUrl.query.s, {password:oUrl.query.p}, function(ap){ console.log("connected:"+ ap); WIFI.save();});
-				WIFI.connect(oUrl.query.s, {password:(oUrl.query.p?oUrl.query.p:"")}, function(ap){ console.log("connected:"); WIFI.save();});
+				//good news, do all the fun stuff with connection to AP
+				WIFI.connect(oUrl.query.s, {password:(oUrl.query.p?oUrl.query.p:"")}, 
+				function(ap){ 
+					console.log("connected:"); 
+					WIFI.stopAP();
+					WIFI.save(); 
+					setTimeout(getWeather, 180000); 
+					setTimeout(setTimeManually, 10000);
+					}
+				);
 				//res.write("<li>successfully connected!</li>");				
 			}
 			catch(e)
@@ -300,8 +293,7 @@ function getPage(req,res)
 			getHTMLRow('System time', dateString(new Date())) + 
 			getHTMLRow('Host',hostip) + 
 			getHTMLRow('Port',req.port) +
-			getHTMLRow('Path',req.path));
-		res.write(	
+			getHTMLRow('Path',req.path) +
 			getInputRow('Zip Code','z', ZIP) +
 			getInputRow('Light Duration (hours)','d', durationForLights) + 
 			getInputRow('Delay from Sunset (mins)','m', NDELAYMINS));
@@ -320,27 +312,23 @@ function getPage(req,res)
 		//add in status values
 		if(req.url == "/status")
 		{
-			res.write(	
-				getHTMLRow('WebPage loads',nPageLoads) +
-				getHTMLRow('Boot Time',dBootTime.toUTCString()) + 
-				getHTMLRow('ESP debug',(JSON.stringify((ESP8266.getState())))));
+			res.write(	getHTMLRow('WebPage loads',nPageLoads) );
 		}
-
 	}
 	//console.log("URL requested: " + req.url);
 
-	res.write(HTTP_FORM_END + HTTP_END);
+	res.write(HTTP_END);
 	res.end();
 }
 
 function getHTMLRow(sLeft, sRight)
 {
-	return '<tr><td class="leftCell">'+sLeft+'</td><td class="rightCell">'+sRight+'</td></tr>';
+	return '<tr><td class="lc">'+sLeft+'</td><td class="rc">'+sRight+'</td></tr>';
 }
 
 function getInputRow(sLabel, sID, sPH, nLen)
 {
-	return getHTMLRow(sLabel, ('<input id="'+sID+'" name="'+sID+'" length="'+nLen+'" placeholder="'+sPH+'">'));
+	return getHTMLRow(sLabel, ('<input id="'+sID+'" name="'+sID+'" length="'+nLen+'" placeholder="'+sPH+'"/>'));
 }
 
 function getButton(sAction, sLabel)
@@ -363,14 +351,6 @@ function fixMinutes(nMins)
 		}
 	}
 	return sMins;
-}
-//no longer used, doesnt handle DST, so just use data from wunderground
-function setSnTP()
-{
-	var sHost = 'us.pool.ntp.org';
-	console.log("set SNTP:" + sHost);
-	WIFI.setSNTP(sHost, -5);
-	setTimeout(setBootTime, 5000);
 }
 
 
