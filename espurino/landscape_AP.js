@@ -18,7 +18,6 @@ var PINOUT = D2;
 var nMilisPerHour = 3600000;
 var STITLE = "Landscape Timer by Will Allen - V22 (2016-05-05)";
 var SURLAPI = 'http://api.wunderground.com/api/13db05c35598dd93/astronomy/q/';
-var SURLAPI2 = 'http://api.wunderground.com/api/13db05c35598dd93/conditions/q/';
 var HTTP_HEAD = "<!DOCTYPE html><html lang=\"en\"><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, user-scalable=no\"/><link rel=\"icon\" type=\"image/png\" href=\"http://i.imgur.com/87R4ig5.png\">";
 var HTTP_STYLE = "<style>.rc{fontWeight:bold;text-align:right} .lc{} .c{text-align: center;} div,input{padding:5px;font-size:1em;} input{width:95%;} body{text-align: center;font-family:verdana;} button{border:0;border-radius:0.3rem;background-color:#1fa3ec;color:#fff;line-height:2.4rem;font-size:1.2rem;width:100%;} .q{float: right;width: 64px;text-align: right;} .l{background: url(\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAALVBMVEX///8EBwfBwsLw8PAzNjaCg4NTVVUjJiZDRUUUFxdiZGSho6OSk5Pg4eFydHTCjaf3AAAAZElEQVQ4je2NSw7AIAhEBamKn97/uMXEGBvozkWb9C2Zx4xzWykBhFAeYp9gkLyZE0zIMno9n4g19hmdY39scwqVkOXaxph0ZCXQcqxSpgQpONa59wkRDOL93eAXvimwlbPbwwVAegLS1HGfZAAAAABJRU5ErkJggg==\") no-repeat left center;background-size: 1em;}</style>";
 var HTTP_HEAD_END = "</head><body><div style='text-align:left;display:inline-block;min-width:260px;'>";
@@ -27,8 +26,6 @@ var HTTP_FORM_START = "<form method='get' action='wifisave'><table>";
 var HTTP_END = '<tr><td colspan="2"><button type="submit">Save</button></form></td></tr></table></div></body></html>';
 
 //Global working variables/settings
-var oWeather = {};
-var sWeather = "";
 var nPageLoads = 0;
 var fIsOn = false;
 var ZIP = '22182';
@@ -43,13 +40,34 @@ function onInit()
 	setTimeout(initializeLightingSystem, 5500);
 }
 
+function startWebserver()
+{
+  console.log("startWebserver");
+  HTTP.createServer(getPage).listen(80);  
+}
+
 function initializeLightingSystem()
 {
-	setMode("initializing System.", 2000);
+	var nStartingTimeout = 10000;
+	setMode("initializing System.", nStartingTimeout);
 	nPageLoads = 0;
 	setPin(false);	//turn off the light
 	startWebserver();
-	setTimeout(loopToStartAP, 10000);
+	setTimeout(loopToStartAP, nStartingTimeout);
+}
+
+//bailout if wifi no longer connected
+function loopToStartAP()
+{
+	WIFI.getStatus(checkConnection);
+	setTimeout(loopToStartAP, nMilisPerHour);//check 1x an hour to see if AP needs to be started
+}
+//no longer used, doesnt handle DST, so just use data from wunderground
+function setSnTP()
+{
+	var sHost = 'us.pool.ntp.org';
+	console.log("set SNTP:" + sHost);
+	WIFI.setSNTP(sHost, -5);
 }
 
 function checkConnection(oState)
@@ -59,6 +77,7 @@ function checkConnection(oState)
 	{
 		console.log("restarting access point!");
 		WIFI.startAP("landscape");
+		fLightsStarted = false;	//something happened, so reset system.  when we do get a connection again, we will now know to start system again!
 	}
 	// else if connected to a station, AND AP is enabled, turn it off, since not good to have on when connected to station
 	else if(oState && oState.station && oState.station === "connected" && oState.ap === "enabled")
@@ -71,129 +90,61 @@ function checkConnection(oState)
 	//if connected to a station, start things off
 	if(oState && oState.station && oState.station === "connected" && oState.ap !== "enabled" && !fLightsStarted)
 	{
-		setTimeout(getWeather, 180000); 
-		setTimeout(setTimeManually, 10000);
 		fLightsStarted = true;
 		console.log("already had conn, starting");
+		setTimeout(getWeather, 60000);
 	}
-}
-//bailout if wifi no longer connected
-function loopToStartAP()
-{
-	WIFI.getStatus(checkConnection);
-	setTimeout(loopToStartAP, nMilisPerHour);//check 1x an hour?
-}
-
-
-//see if time is way off, and try to set with the sunset data (if available)
-function setTimeManually(fForce)
-{
-	//BROKEN - cannot get time, weather rincomplete
-	//(new Date()).getFullYear()
-	var systDate = new Date();
-	//look at year, and see if the weather variable is set (probably already stored in the memory)
-	if(fForce===true || systDate.getFullYear() < 2010)
-	{
-		var sURL = SURLAPI2 + ZIP + ".json";
-		console.log(sURL);
-		HTTP.get((sURL), function(res)
-		{
-			res.on('data', function(wunderString) {(sWeather += wunderString);});
-			res.on('close', function(fLoaded) 
-			{
-				var oDateData = JSON.parse( sWeather);
-				sWeather = "";
-				if(oDateData && oDateData.current_observation && oDateData.current_observation.local_epoch)
-				{
-					//factor of 1000 needed?
-					var nOffset = parseInt(oDateData.current_observation.local_tz_offset,10)* 36;
-					var nLocalEp = parseInt(oDateData.current_observation.local_epoch,10);
-					console.log("got a date: "+ nOffset + " " + nLocalEp);
-					if(!isNaN(nOffset) && !isNaN(nLocalEp))
-					{
-						setTime(nLocalEp + nOffset);
-					}
-				}
-			});
-		});
-	}
-}
-
-function startWebserver()
-{
-  console.log("startWebserver");
-  HTTP.createServer(getPage).listen(80);  
 }
 
 //populate the weather variable with the sunset, etc
 function getWeather()
 {
-  setMode("getting Weather", 2000);
-  HTTP.get((SURLAPI + ZIP + ".json"), function(res) 
-   {
-    res.on('data', function(wunderString) {   sWeather += wunderString;   });
-    res.on('close', function(fLoaded) 
+	setMode("getting Weather", 2000);
+	getWeather.val = "";
+	HTTP.get((SURLAPI + ZIP + ".json"), function(res) 
 	{
-      console.log("Connection to wunder closed");
-      oWeather = JSON.parse( sWeather );
-      sWeather = "";
-      sleepTilSunset();	//wait until you get the weather, then sleep until the sunset
-    });
-  });
+		res.on('data', function(wunderString) {   getWeather.val += wunderString;   });
+		res.on('close', function(fLoaded) 
+		{
+			console.log("Connection to wunder closed");
+			var oWeather = JSON.parse( getWeather.val );
+			getWeather.val = "";
+
+			var nMinsTilSunset = oWeather.moon_phase.sunset.minute - oWeather.moon_phase.current_time.minute;
+			var nHoursTilSunset = oWeather.moon_phase.sunset.hour - oWeather.moon_phase.current_time.hour;
+			var nMilisToSunset = (nMinsTilSunset * 36000) + (nHoursTilSunset *nMilisPerHour);
+			var nLightsOffTime = nMilisToSunset + (durationForLights*nMilisPerHour);
+
+			console.log("sunset:" + nMilisToSunset + "lights off:" + nLightsOffTime );
+
+			//either not yet sunset, or sunset has recently passed
+			if(nMilisToSunset > 0 || ((nMilisToSunset +nLightsOffTime) > 0))
+			{
+				var nSleepTime = Math.max((nSunsetTime - nCurrentTime),100);
+				console.log("sleep til sunset:" + nSleepTime);
+				setTimeout(turnOnLights, nSleepTime);
+			}
+			else
+			{
+				var sMessage = "after sunset, after lights";
+				console.log(sMessage + nSleepTime);
+				turnOffLights(sMessage);
+			}
+		});
+	});
   //what to do if didnt get?
 }
-
-function sleepTilSunset()
-{
-      try  //try due to possibility weather didnt get loaded.
-      {
-        //if sunset is still coming (ignore minutes)
-		var nHoursTilSunset = oWeather.moon_phase.sunset.hour - oWeather.moon_phase.current_time.hour; 
-        if(nHoursTilSunset > 0)
-        {
-			//add 15 minutes from sunset
-			var nMinutesTilSS = oWeather.moon_phase.sunset.minute - oWeather.moon_phase.current_time.minute + NDELAYMINS;
-			var nSleepTime = (nHoursTilSunset*nMilisPerHour) + (nMinutesTilSS*60000);
-			setMode("sleeping until sunset", "Turn on lights", nSleepTime);
-			setTimeout(turnOnLights, nSleepTime);
-        }
-		//should lights be on?
-        else if((nHoursTilSunset + durationForLights) > 1)
-        {
-			turnOnLights();
-        }
-		else
-		{
-            //its already after dark, so turn off the lights
-            turnOffLights();
-		}
-      }
-      catch(e)
-      {
-		console.log("there was an issue reading the weather data:" + e);
-        //try using the system time
-		var nSystemSleepTime= getMillisTilSunsetFromSystem();
-		if(nSystemSleepTime > 0)
-		{
-			setMode("sleeping until sunset (manual)", "Turn on lights", nSystemSleepTime);
-			setTimeout(turnOnLights, nSystemSleepTime);
-		}
-		else  //even system time didnt work, so try again in 12 hrs
-		{
-			turnOffLights("sys and wunder fail");
-		}
-      }
-}
+getWeather.val = "";
 
 function toggleLights()
 {
 	if(fIsOn)
 	{
-		turnOffLights("Lights turned off manually");
+		setPin(false);	//simply turn off, dont use function since it has setTimeout
 	}
 	else
 	{
-		turnOnLights();
+		turnOnLights();	//use function, so lights are never on indefinitely
 	}
 }
 
@@ -278,6 +229,7 @@ function getPage(req,res)
 					console.log("connected:"); 
 					WIFI.stopAP();
 					WIFI.setHostname("landscape");
+					setSnTP();
 					WIFI.save(); 
 					}
 				);
@@ -315,7 +267,6 @@ function getPage(req,res)
 		}
 		else if(req.url == "/reset")
 		{
-			setTimeManually(true);
 			getWeather();
 		}
 
@@ -373,28 +324,5 @@ function fixMinutes(nMins)
 		}
 	}
 	return sMins;
-}
-
-
-function getMillisTilSunsetFromSystem()
-{
-	var dSysDate = new Date();
-	var nMillis = -1;  // -1 means sunset has either passed, or system time not set
-	if(dSysDate.getFullYear() > 2000)
-	{
-		//ignore DST
-		var aSunsetTimesForMonth = [17,18,18, 18, 19, 19,19,19,18,18,18,17 ];
-		var nCurrentHour = dSysDate.getHours();
-		var nSunsetTime = aSunsetTimesForMonth[dSysDate.getMonth()];
-		if(nCurrentHour < nSunsetTime)
-		{
-			nMillis = nMilisPerHour * (nSunsetTime -nCurrentHour );
-		}
-	}
-	else  //sysdate not set, so nothing we can do!
-	{
-		console.log("Unable to get system date: " + dSysDate.toUTCString());
-	}
-	return nMillis;
 }
 onInit();
