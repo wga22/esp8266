@@ -103,11 +103,16 @@ function setTimeManually(fForce)
 			{
 				var oDateData = JSON.parse( sWeather);
 				sWeather = "";
-				if(oDateData && oDateData.current_observation && oDateData.current_observation.observation_epoch)
+				if(oDateData && oDateData.current_observation && oDateData.current_observation.local_epoch)
 				{
-					console.log("got a date: "+ oDateData.current_observation.observation_epoch);
-					//factor of 1000 needed
-					setTime(oDateData.current_observation.observation_epoch);
+					//factor of 1000 needed?
+					var nOffset = parseInt(oDateData.current_observation.local_tz_offset,10)* 36;
+					var nLocalEp = parseInt(oDateData.current_observation.local_epoch,10);
+					console.log("got a date: "+ nOffset + " " + nLocalEp);
+					if(!isNaN(nOffset) && !isNaN(nLocalEp))
+					{
+						setTime(nLocalEp + nOffset);
+					}
 				}
 			});
 		});
