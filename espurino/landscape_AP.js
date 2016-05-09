@@ -22,7 +22,7 @@ var SURLAPI2 = 'http://api.wunderground.com/api/13db05c35598dd93/conditions/q/';
 var HTTP_HEAD = "<!DOCTYPE html><html lang=\"en\"><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, user-scalable=no\"/><link rel=\"icon\" type=\"image/png\" href=\"http://i.imgur.com/87R4ig5.png\">";
 var HTTP_STYLE = "<style>.rc{fontWeight:bold;text-align:right} .lc{} .c{text-align: center;} div,input{padding:5px;font-size:1em;} input{width:95%;} body{text-align: center;font-family:verdana;} button{border:0;border-radius:0.3rem;background-color:#1fa3ec;color:#fff;line-height:2.4rem;font-size:1.2rem;width:100%;} .q{float: right;width: 64px;text-align: right;} .l{background: url(\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAALVBMVEX///8EBwfBwsLw8PAzNjaCg4NTVVUjJiZDRUUUFxdiZGSho6OSk5Pg4eFydHTCjaf3AAAAZElEQVQ4je2NSw7AIAhEBamKn97/uMXEGBvozkWb9C2Zx4xzWykBhFAeYp9gkLyZE0zIMno9n4g19hmdY39scwqVkOXaxph0ZCXQcqxSpgQpONa59wkRDOL93eAXvimwlbPbwwVAegLS1HGfZAAAAABJRU5ErkJggg==\") no-repeat left center;background-size: 1em;}</style>";
 var HTTP_HEAD_END = "</head><body><div style='text-align:left;display:inline-block;min-width:260px;'>";
-var HTTP_PORTAL_OPTIONS  = "<form action=\"/wifi\" method=\"get\"><button>Configure WiFi</button></form><br/><form action=\"/0wifi\" method=\"get\"><button>Configure WiFi (No Scan)</button></form><br/><form action=\"/i\" method=\"get\"><button>Info</button></form><br/><form action=\"/r\" method=\"post\"><button>Reset</button></form>";
+//var HTTP_PORTAL_OPTIONS  = "<form action=\"/wifi\" method=\"get\"><button>Configure WiFi</button></form><br/><form action=\"/0wifi\" method=\"get\"><button>Configure WiFi (No Scan)</button></form><br/><form action=\"/i\" method=\"get\"><button>Info</button></form><br/><form action=\"/r\" method=\"post\"><button>Reset</button></form>";
 var HTTP_FORM_START = "<form method='get' action='wifisave'><table>";
 var HTTP_END = '<tr><td colspan="2"><button type="submit">Save</button></form></td></tr></table></div></body></html>';
 
@@ -54,11 +54,13 @@ function initializeLightingSystem()
 
 function checkConnection(oState)
 {
+	//if not connected to a station, and AP is disabled
 	if(oState && oState.station && oState.station != "connected" && oState.ap != "enabled")
 	{
 		console.log("restarting access point!");
 		WIFI.startAP("landscape");
 	}
+	// else if connected to a station, AND AP is enabled, turn it off, since not good to have on when connected to station
 	else if(oState && oState.station && oState.station === "connected" && oState.ap === "enabled")
 	{
 		//access point is still enabled, but connected to wifi, so its safe to turn off, and start the nightly process
@@ -66,6 +68,7 @@ function checkConnection(oState)
 		WIFI.stopAP();		//needed for memory reasons!
 	}
 
+	//if connected to a station, start things off
 	if(oState && oState.station && oState.station === "connected" && oState.ap !== "enabled" && !fLightsStarted)
 	{
 		setTimeout(getWeather, 180000); 
@@ -85,9 +88,11 @@ function loopToStartAP()
 //see if time is way off, and try to set with the sunset data (if available)
 function setTimeManually(fForce)
 {
+	//BROKEN - cannot get time, weather rincomplete
+	//(new Date()).getFullYear()
 	var systDate = new Date();
 	//look at year, and see if the weather variable is set (probably already stored in the memory)
-	if(fForce===true || systDate.getFullYear() < 2000)
+	if(fForce===true || systDate.getFullYear() < 2010)
 	{
 		var sURL = SURLAPI2 + ZIP + ".json";
 		console.log(sURL);
@@ -98,11 +103,11 @@ function setTimeManually(fForce)
 			{
 				var oDateData = JSON.parse( sWeather);
 				sWeather = "";
-				if(oDateData && oDateData.observation_epoch)
+				if(oDateData && oDateData.current_observation && oDateData.current_observation.observation_epoch)
 				{
+					console.log("got a date: "+ oDateData.current_observation.observation_epoch);
 					//factor of 1000 needed
-					console.log(oDateData.observation_epoch + " " + ((new Date(oDateData.observation_epoch*1000)).toUTCString()));
-					setTime(oDateData.observation_epoch * 1000);
+					setTime(oDateData.current_observation.observation_epoch);
 				}
 			});
 		});
@@ -267,6 +272,7 @@ function getPage(req,res)
 				function(ap){ 
 					console.log("connected:"); 
 					WIFI.stopAP();
+					WIFI.setHostname("landscape");
 					WIFI.save(); 
 					}
 				);
@@ -318,10 +324,9 @@ function getPage(req,res)
 		if(req.url == "/status")
 		{
 			res.write(getHTMLRow('WebPage loads',nPageLoads) +
-			getHTMLRow('Host',JSON.stringify(WIFI.getIP())) + 
-			getHTMLRow('Port',req.port) +
-			getHTMLRow('Path',req.path)
-				);
+				getHTMLRow('Host',JSON.stringify(WIFI.getIP())) + 
+				getHTMLRow('Status',sMode)
+			);
 		}
 	}
 	//console.log("URL requested: " + req.url);
