@@ -303,13 +303,6 @@ function getPage(req,res)
 		{
 			NDELAYMINS = parseInt(oUrl.query.m, 10);
 		}
-		res.write(
-			getHTMLRow('System time', dateString(new Date())) + 
-			getInputRow('Zip Code','z', ZIP) +
-			getInputRow('Light Duration (hours)','d', durationForLights) + 
-			getInputRow('Delay from Sunset (mins)','m', NDELAYMINS));
-
-		res.write(getHTMLRow(getButton("toggle", ("Turn " + (fIsOn?"Off":"On"))),getButton("status", ("Status"))));
 
 		if(req.url ==  "/toggle")
 		{
@@ -320,6 +313,16 @@ function getPage(req,res)
 			setTimeManually(true);
 			getWeather();
 		}
+
+
+		res.write(
+			getHTMLRow('System time', dateString(new Date())) + 
+			getInputRow('Zip Code','z', ZIP) +
+			getInputRow('Light Duration (hours)','d', durationForLights) + 
+			getInputRow('Delay from Sunset (mins)','m', NDELAYMINS));
+
+		res.write(getHTMLRow(getButton("toggle", ("Turn " + (fIsOn?"Off":"On"))),getButton("status", ("Status"))));
+
 		//add in status values
 		if(req.url == "/status")
 		{
