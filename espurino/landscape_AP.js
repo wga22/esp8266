@@ -16,7 +16,7 @@ var WIFI = require("Wifi");
 //Global Constants / strings
 var PINOUT = D2;
 var nMilisPerHour = 3600000;
-var STITLE = "Landscape Timer by Will Allen - V22 (2016-05-05)";
+var STITLE = "Landscape Timer by Will Allen - V30 (2016-05-09)";
 var SURLAPI = 'http://api.wunderground.com/api/13db05c35598dd93/astronomy/q/';
 var HTTP_HEAD = "<!DOCTYPE html><html lang=\"en\"><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, user-scalable=no\"/><link rel=\"icon\" type=\"image/png\" href=\"http://i.imgur.com/87R4ig5.png\">";
 var HTTP_STYLE = "<style>.rc{fontWeight:bold;text-align:right} .lc{} .c{text-align: center;} div,input{padding:5px;font-size:1em;} input{width:95%;} body{text-align: center;font-family:verdana;} button{border:0;border-radius:0.3rem;background-color:#1fa3ec;color:#fff;line-height:2.4rem;font-size:1.2rem;width:100%;} .q{float: right;width: 64px;text-align: right;} .l{background: url(\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAALVBMVEX///8EBwfBwsLw8PAzNjaCg4NTVVUjJiZDRUUUFxdiZGSho6OSk5Pg4eFydHTCjaf3AAAAZElEQVQ4je2NSw7AIAhEBamKn97/uMXEGBvozkWb9C2Zx4xzWykBhFAeYp9gkLyZE0zIMno9n4g19hmdY39scwqVkOXaxph0ZCXQcqxSpgQpONa59wkRDOL93eAXvimwlbPbwwVAegLS1HGfZAAAAABJRU5ErkJggg==\") no-repeat left center;background-size: 1em;}</style>";
@@ -120,14 +120,14 @@ function getWeather()
 			//either not yet sunset, or sunset has recently passed
 			if(nMilisToSunset > 0 || ((nMilisToSunset +nLightsOffTime) > 0))
 			{
-				var nSleepTime = Math.max((nSunsetTime - nCurrentTime),100);
+				var nSleepTime = Math.max((nMilisToSunset - nLightsOffTime),100);
 				console.log("sleep til sunset:" + nSleepTime);
 				setTimeout(turnOnLights, nSleepTime);
 			}
 			else
 			{
 				var sMessage = "after sunset, after lights";
-				console.log(sMessage + nSleepTime);
+				console.log(sMessage);
 				turnOffLights(sMessage);
 			}
 		});
@@ -170,10 +170,10 @@ function dateString(a_dDate)
 	return aMonths[a_dDate.getMonth()] + " " + (a_dDate.getDate()) + " " + (a_dDate.getHours()) + ":" + (fixMinutes(a_dDate.getMinutes()));
 }
 
-function setMode(a_sMode, a_sNext , a_sSleepDuration)
+function setMode(a_sMode, a_sNext , a_nSleepDuration)
 {
   //set global variable with the date that next action happens
-  var nSleepToDateMillis = ((new Date()).getTime()) + a_sSleepDuration;
+  var nSleepToDateMillis = ((new Date()).getTime()) + a_nSleepDuration;
   // set global variable indicating what system is currently doing
   sMode = dateString(new Date()) + ": " + a_sMode + " (Next action: " +a_sNext + " " + (dateString(new Date(nSleepToDateMillis))) + ')';
   //log out what is going on
