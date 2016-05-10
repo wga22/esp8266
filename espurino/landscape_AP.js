@@ -182,17 +182,17 @@ function setMode(a_sMode, a_sNext , a_nSleepDuration)
 
 function setPin(fSet)
 {
-  fIsOn = fSet;
-  pinMode(PINOUT, "output"); 
-  if(fIsOn)
-  {
-      //pull low to turn on
-      digitalWrite(PINOUT, 0);
-  }
-  else
-  {
-    digitalWrite(PINOUT, 255);  
-  }
+	fIsOn = fSet;
+	pinMode(PINOUT, "output"); 
+	if(fIsOn)
+	{
+	//pull low to turn on
+		digitalWrite(PINOUT, 0);
+	}
+	else
+	{
+		digitalWrite(PINOUT, 255);  
+	}
 }
 
 //event for webserver
@@ -201,7 +201,6 @@ function getPage(req,res)
 	nPageLoads++;
 	console.log("URL requested: " + req.url);
 	var oUrl = url.parse(req.url, true);
-	
 	res.writeHead(200, {'Content-Type': 'text/html'});
 	res.write(HTTP_HEAD);
 	res.write(HTTP_STYLE);
@@ -233,7 +232,6 @@ function getPage(req,res)
 					WIFI.save(); 
 					}
 				);
-				//res.write("<li>successfully connected!</li>");				
 			}
 			catch(e)
 			{
