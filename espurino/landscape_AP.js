@@ -61,7 +61,7 @@ function initializeLightingSystem()
 function loopToStartAP()
 {
 	WIFI.getStatus(checkConnection);
-	setTimeout(loopToStartAP, NMILISPERHOUR);//check 1x an hour to see if AP needs to be started
+	setTimeout(loopToStartAP, NMILIPERHOUR);//check 1x an hour to see if AP needs to be started
 }
 //no longer used, doesnt handle DST, so just use data from wunderground
 function setSnTP()
@@ -122,18 +122,23 @@ function getWeather()
 			console.log("Connection to wunder closed");
 			var oWeather = JSON.parse( getWeather.val );
 			getWeather.val = "";
-
+			
 			var nSSHr = parseInt(oWeather.moon_phase.sunset.hour,10);
 			var nSSMn = parseInt(oWeather.moon_phase.sunset.minute,10);
 			var nCTHr = parseInt(oWeather.moon_phase.current_time.hour,10);
 			var nCTMn = parseInt(oWeather.moon_phase.current_time.minute,10);
-			var nMilisToSunset = ((nSSMn - nCTMn) * NMILIPERMIN) + ((nSSHr - nCTHr) * NMILISPERHOUR);
-
+			var nMilisToSunset = ((nSSMn - nCTMn) * NMILIPERMIN) + ((nSSHr - nCTHr) * NMILIPERHOUR);
+			
 			//make sure its in middle of the hour
 			if(nCTMn > 5 && nCTMn < 55 )
 			{
 				fixTimeZone(nCTHr);	
 			}
+<<<<<<< HEAD
+=======
+			
+			console.log("sunset:" + (nMilisToSunset/NMILIPERMIN) + "lights off:" + (nLightsOffTime/NMILIPERMIN) );
+>>>>>>> parent of 2531982... milllisperhour fix
 
 			//either not yet sunset
 			if(nMilisToSunset > 0)
@@ -141,7 +146,7 @@ function getWeather()
 				setMode("waiting for sunset", "turn on lights", nMilisToSunset);
 				setTimeout(turnOnLights, nMilisToSunset);
 			}
-			else if((nMilisToSunset + (durationForLights*NMILISPERHOUR)) > 0)  //sunset recently passed
+			else if((nMilisToSunset + (durationForLights*NMILIPERHOUR)) > 0)  //sunset recently passed
 			{
 				console.log("after sunset, before lights off");
 				turnOnLights();
@@ -174,7 +179,7 @@ function toggleLights()
 function turnOnLights()
 {
   setPin(true);
-  var nMilisForLights = durationForLights*NMILISPERHOUR;
+  var nMilisForLights = durationForLights*NMILIPERHOUR;
   setMode("after sunset, running lights", "Turn off Lights", nMilisForLights);
   setTimeout(turnOffLights, (nMilisForLights));
 }
@@ -182,7 +187,7 @@ function turnOnLights()
 function turnOffLights(sMessage)
 {
   setPin(false);
-  var nSleepTilMorning = (12*NMILISPERHOUR);
+  var nSleepTilMorning = (12*NMILIPERHOUR);
   setMode(("Lights off" + (sMessage ? sMessage : "")), "Get Weather", nSleepTilMorning);
   setTimeout(getWeather, nSleepTilMorning);
 }
