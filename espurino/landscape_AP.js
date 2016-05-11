@@ -48,12 +48,11 @@ function startWebserver()
 
 function initializeLightingSystem()
 {
-	var nStartingTimeout = 10000;
-	setMode("initializing System.", nStartingTimeout);
+	setMode("initializing System.", 10000);
 	nPageLoads = 0;
 	setPin(false);	//turn off the light
 	startWebserver();
-	setTimeout(loopToStartAP, nStartingTimeout);
+	loopToStartAP();
 }
 
 //bailout if wifi no longer connected
@@ -67,7 +66,7 @@ function setSnTP()
 {
 	var sHost = 'us.pool.ntp.org';
 	console.log("set SNTP:" + sHost);
-	WIFI.setSNTP(sHost, -5);
+	WIFI.setSNTP(sHost, -4);
 }
 
 function checkConnection(oState)
@@ -117,12 +116,16 @@ function getWeather()
 
 			console.log("sunset:" + nMilisToSunset + "lights off:" + nLightsOffTime );
 
-			//either not yet sunset, or sunset has recently passed
-			if(nMilisToSunset > 0 || ((nMilisToSunset +nLightsOffTime) > 0))
+			//either not yet sunset
+			if(nMilisToSunset > 0)
 			{
-				var nSleepTime = Math.max((nMilisToSunset - nLightsOffTime),100);
-				console.log("sleep til sunset:" + nSleepTime);
-				setTimeout(turnOnLights, nSleepTime);
+				console.log("sleep til sunset:" + nMilisToSunset);
+				setTimeout(turnOnLights, nMilisToSunset);
+			}
+			else if(nLightsOffTime > 0)  //sunset recently passed
+			{
+				console.log("turn on lights, since after sunset" + nLightsOffTime);
+				turnOnLights();
 			}
 			else
 			{
@@ -144,6 +147,7 @@ function toggleLights()
 	}
 	else
 	{
+		//TODO: worry about too many threads??
 		turnOnLights();	//use function, so lights are never on indefinitely
 	}
 }
