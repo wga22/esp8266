@@ -135,17 +135,15 @@ function getWeather()
 				fixTimeZone(nCTHr);	
 			}
 
-			console.log("sunset:" + (nMilisToSunset/NMILIPERMIN) + "lights off:" + (nLightsOffTime/NMILIPERMIN) );
-
 			//either not yet sunset
 			if(nMilisToSunset > 0)
 			{
-				console.log("sleep til sunset:" + nMilisToSunset);
+				setMode("waiting for sunset", "turn on lights", nMilisToSunset);
 				setTimeout(turnOnLights, nMilisToSunset);
 			}
 			else if((nMilisToSunset + (durationForLights*NMILISPERHOUR)) > 0)  //sunset recently passed
 			{
-				console.log("turn on lights, since after sunset" + nLightsOffTime);
+				console.log("after sunset, before lights off");
 				turnOnLights();
 			}
 			else
