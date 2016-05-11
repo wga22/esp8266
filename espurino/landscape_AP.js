@@ -15,7 +15,6 @@ var WIFI = require("Wifi");
 
 //Global Constants / strings
 var PINOUT = D2;
-var nMilisPerHour = 3600000;
 var STITLE = "Landscape Timer by Will Allen - V30 (2016-05-09)";
 var SURLAPI = 'http://api.wunderground.com/api/13db05c35598dd93/astronomy/q/';
 var HTTP_HEAD = "<!DOCTYPE html><html lang=\"en\"><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, user-scalable=no\"/><link rel=\"icon\" type=\"image/png\" href=\"http://i.imgur.com/87R4ig5.png\">";
@@ -34,6 +33,9 @@ var durationForLights = 5;  //hours
 var nSleepToDateMillis = 0;
 var sMode = "nothing";
 var fLightsStarted = false;
+var NTZ = -4;
+var NMILIPERMIN = 60000;
+var NMILISPERHOUR = 60*NMILIPERMIN;
 
 function onInit()
 {
@@ -59,14 +61,14 @@ function initializeLightingSystem()
 function loopToStartAP()
 {
 	WIFI.getStatus(checkConnection);
-	setTimeout(loopToStartAP, nMilisPerHour);//check 1x an hour to see if AP needs to be started
+	setTimeout(loopToStartAP, NMILIPERHOUR);//check 1x an hour to see if AP needs to be started
 }
 //no longer used, doesnt handle DST, so just use data from wunderground
 function setSnTP()
 {
 	var sHost = 'us.pool.ntp.org';
 	console.log("set SNTP:" + sHost);
-	WIFI.setSNTP(sHost, -4);
+	WIFI.setSNTP(sHost, NTZ);
 }
 
 function checkConnection(oState)
@@ -95,6 +97,18 @@ function checkConnection(oState)
 	}
 }
 
+function fixTimeZone(nWNDHR)
+{
+	var oDate = new Date();
+	var nCurHr = oDate.getHours();
+	//time from wunderground not matching current time, maybe TZ is wrong?!
+	if(nCurHr != nWNDHR)
+	{
+		NTZ = NTZ + (nCurHr-nWNDHR);
+		setSNTP();
+	}
+}
+
 //populate the weather variable with the sunset, etc
 function getWeather()
 {
@@ -108,13 +122,20 @@ function getWeather()
 			console.log("Connection to wunder closed");
 			var oWeather = JSON.parse( getWeather.val );
 			getWeather.val = "";
-
-			var nMinsTilSunset = oWeather.moon_phase.sunset.minute - oWeather.moon_phase.current_time.minute;
-			var nHoursTilSunset = oWeather.moon_phase.sunset.hour - oWeather.moon_phase.current_time.hour;
-			var nMilisToSunset = (nMinsTilSunset * 36000) + (nHoursTilSunset *nMilisPerHour);
-			var nLightsOffTime = nMilisToSunset + (durationForLights*nMilisPerHour);
-
-			console.log("sunset:" + nMilisToSunset + "lights off:" + nLightsOffTime );
+			
+			var nSSHr = parseInt(oWeather.moon_phase.sunset.hour,10);
+			var nSSMn = parseInt(oWeather.moon_phase.sunset.minute,10);
+			var nCTHr = parseInt(oWeather.moon_phase.current_time.hour,10);
+			var nCTMn = parseInt(oWeather.moon_phase.current_time.minute,10);
+			var nMilisToSunset = ((nSSMn - nCTMn) * NMILIPERMIN) + ((nSSHr - nCTHr) * NMILIPERHOUR);
+			
+			//make sure its in middle of the hour
+			if(nCTMn > 5 && nCTMn < 55 )
+			{
+				fixTimeZone(nCTHr);	
+			}
+			
+			console.log("sunset:" + (nMilisToSunset/NMILIPERMIN) + "lights off:" + (nLightsOffTime/NMILIPERMIN) );
 
 			//either not yet sunset
 			if(nMilisToSunset > 0)
@@ -122,14 +143,14 @@ function getWeather()
 				console.log("sleep til sunset:" + nMilisToSunset);
 				setTimeout(turnOnLights, nMilisToSunset);
 			}
-			else if(nLightsOffTime > 0)  //sunset recently passed
+			else if((nMilisToSunset + (durationForLights*NMILIPERHOUR)) > 0)  //sunset recently passed
 			{
 				console.log("turn on lights, since after sunset" + nLightsOffTime);
 				turnOnLights();
 			}
 			else
 			{
-				var sMessage = "after sunset, after lights";
+				var sMessage = "after sunset too late for lights";
 				console.log(sMessage);
 				turnOffLights(sMessage);
 			}
@@ -155,7 +176,7 @@ function toggleLights()
 function turnOnLights()
 {
   setPin(true);
-  var nMilisForLights = durationForLights*nMilisPerHour;
+  var nMilisForLights = durationForLights*NMILIPERHOUR;
   setMode("after sunset, running lights", "Turn off Lights", nMilisForLights);
   setTimeout(turnOffLights, (nMilisForLights));
 }
@@ -163,7 +184,7 @@ function turnOnLights()
 function turnOffLights(sMessage)
 {
   setPin(false);
-  var nSleepTilMorning = (12*nMilisPerHour);
+  var nSleepTilMorning = (12*NMILIPERHOUR);
   setMode(("Lights off" + (sMessage ? sMessage : "")), "Get Weather", nSleepTilMorning);
   setTimeout(getWeather, nSleepTilMorning);
 }
