@@ -39,7 +39,7 @@ var NMILISPERHOUR = 60*NMILIPERMIN;
 
 function onInit()
 {
-	setTimeout(initializeLightingSystem, 5500);
+	setTimeout(initializeLightingSystem, 15000);
 }
 
 function startWebserver()
@@ -93,8 +93,17 @@ function checkConnection(oState)
 	{
 		fLightsStarted = true;
 		console.log("already had conn, starting");
+		if(!dateIsSet())
+		{
+			setSnTP();
+		}
 		setTimeout(getWeather, 60000);
 	}
+}
+
+function dateIsSet()
+{
+	return (new Date()).getFullYear() > 2010;
 }
 
 function fixTimeZone(nWNDHR)
@@ -102,13 +111,14 @@ function fixTimeZone(nWNDHR)
 	var oDate = new Date();
 	var nCurHr = oDate.getHours();
 	//time from wunderground not matching current time, maybe TZ is wrong?!
-	if(oDate.getFullYear() > 2010 && nCurHr != nWNDHR)
+	if(dateIsSet() && nCurHr != nWNDHR)
 	{
       var newOffset = NTZ  + nCurHr - nWNDHR +12;
       newOffset = (newOffset % 24) - 12;
       console.log("TZ: " + NTZ + " changes to " + newOffset );
 	  NTZ = newOffset;
       setSnTP();
+	  WIFI.save();
 	}
 }
 
@@ -243,17 +253,15 @@ function getPage(req,res)
 		{
 			console.log("attempting to connect to " + oUrl.query.s);
 			res.write("<li>Connecting to " + oUrl.query.s+"</li>");
-			//res.write("<li>"+oUrl.query.p+"</li>");
-			//WIFI.connect(oUrl.query.s, {password:oUrl.query.p}, function(ap){ console.log("connected:"+ ap);});
-			//WIFI.save();
 			try
 			{
 				//good news, do all the fun stuff with connection to AP
 				WIFI.connect(oUrl.query.s, {password:(oUrl.query.p?oUrl.query.p:"")}, 
 				function(ap){ 
-					console.log("connected:"); 
+					var nRand = ((new Date()).getTime() + "").substr(10,2);
+					console.log("connected:" + nRand); 
 					WIFI.stopAP();
-					WIFI.setHostname("landscape");
+					WIFI.setHostname("landscape" + nRand);
 					setSnTP();
 					WIFI.save(); 
 					}
