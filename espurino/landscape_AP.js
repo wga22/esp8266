@@ -6,7 +6,7 @@
 		implement reset / deepsleep?
 	Created: April 2016
 	Modified:
-	REQUIRED:  Must have set all wifi properties manually on your Esprunio (tested on version 1.84)
+	REQUIRED:  
 */
 
 //Global requires
@@ -63,7 +63,6 @@ function loopToStartAP()
 	WIFI.getStatus(checkConnection);
 	setTimeout(loopToStartAP, NMILISPERHOUR);//check 1x an hour to see if AP needs to be started
 }
-//no longer used, doesnt handle DST, so just use data from wunderground
 function setSnTP()
 {
 	var sHost = 'us.pool.ntp.org';
@@ -78,6 +77,7 @@ function checkConnection(oState)
 	{
 		console.log("restarting access point!");
 		WIFI.startAP("landscape");
+		WIFI.save();
 		fLightsStarted = false;	//something happened, so reset system.  when we do get a connection again, we will now know to start system again!
 	}
 	// else if connected to a station, AND AP is enabled, turn it off, since not good to have on when connected to station
