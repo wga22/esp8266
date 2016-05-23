@@ -4,6 +4,11 @@
 	TODO: 
 		rename global variables (or put into a hashmap?)
 		implement reset / deepsleep?
+		store zip and other values in flash
+			
+			E.toString(E.toUint8Array("mcdonalds"))
+			>flash.read(12,487424)
+			var flash = require("Flash")
 	Created: April 2016
 	Modified:
 	REQUIRED:  
@@ -233,17 +238,23 @@ function setMode(a_sMode, a_sNext , a_nSleepDuration)
 
 function setPin(fSet)
 {
-	fIsOn = fSet;
-	pinMode(PINOUT, "output"); 
-	if(fIsOn)
+	fIsOn = (fSet === true);
+	_setpin(fIsOn, PINOUT);
+	_setpin(fIsOn, D13);
+}
+
+function _setpin(fSet, sPin)
+{
+	pinMode(sPin, "output"); 
+	if(fSet)
 	{
 	//pull low to turn on
-		digitalWrite(PINOUT, 0);
+		digitalWrite(sPin, 0);
 	}
 	else
 	{
-		digitalWrite(PINOUT, 255);  
-	}
+		digitalWrite(sPin, 255);  
+	}	
 }
 
 //event for webserver
