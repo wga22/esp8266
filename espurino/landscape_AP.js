@@ -12,10 +12,11 @@
 //Global requires
 var HTTP = require("http");
 var WIFI = require("Wifi");
+var ESP8266 = require("ESP8266");
 
 //Global Constants / strings
 var PINOUT = D2;
-var STITLE = "Landscape Timer by Will Allen - V31 (2016-05-16)";
+var STITLE = "Landscape Timer by Will Allen - V32 (2016-05-22)";
 var SURLAPI = 'http://api.wunderground.com/api/13db05c35598dd93/astronomy/q/';
 var HTTP_HEAD = "<!DOCTYPE html><html lang=\"en\"><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, user-scalable=no\"/><link rel=\"icon\" type=\"image/png\" href=\"http://i.imgur.com/87R4ig5.png\">";
 var HTTP_STYLE = "<style>.rc{fontWeight:bold;text-align:right} .lc{} .c{text-align: center;} div,input{padding:5px;font-size:1em;} input{width:95%;} body{text-align: center;font-family:verdana;} button{border:0;border-radius:0.3rem;background-color:#1fa3ec;color:#fff;line-height:2.4rem;font-size:1.2rem;width:100%;} .q{float: right;width: 64px;text-align: right;} .l{background: url(\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAALVBMVEX///8EBwfBwsLw8PAzNjaCg4NTVVUjJiZDRUUUFxdiZGSho6OSk5Pg4eFydHTCjaf3AAAAZElEQVQ4je2NSw7AIAhEBamKn97/uMXEGBvozkWb9C2Zx4xzWykBhFAeYp9gkLyZE0zIMno9n4g19hmdY39scwqVkOXaxph0ZCXQcqxSpgQpONa59wkRDOL93eAXvimwlbPbwwVAegLS1HGfZAAAAABJRU5ErkJggg==\") no-repeat left center;background-size: 1em;}</style>";
@@ -26,6 +27,7 @@ var HTTP_END = '<tr><td colspan="2"><button type="submit">Save</button></form></
 
 //Global working variables/settings
 var nPageLoads = 0;
+var nBrokenWIFIConnections = 0;
 var fIsOn = false;
 var ZIP = '22182';
 var NDELAYMINS = 5;
@@ -73,32 +75,45 @@ function setSnTP()
 function checkConnection(oState)
 {
 	//if not connected to a station, and AP is disabled
-	if(oState && oState.station && oState.station != "connected" && oState.ap != "enabled")
+	if(oState && oState.station)
 	{
-		console.log("restarting access point!");
-		WIFI.startAP("landscape");
-		WIFI.save();
-		fLightsStarted = false;	//something happened, so reset system.  when we do get a connection again, we will now know to start system again!
-	}
-	// else if connected to a station, AND AP is enabled, turn it off, since not good to have on when connected to station
-	else if(oState && oState.station && oState.station === "connected" && oState.ap === "enabled")
-	{
-		//access point is still enabled, but connected to wifi, so its safe to turn off, and start the nightly process
-		console("turning off AP, and making callout for weather and time");
-		WIFI.stopAP();		//needed for memory reasons!
+		if(oState.station != "connected" && oState.ap != "enabled")
+		{
+			if(fLightsStarted && nBrokenWIFIConnections < 24)	//maybe wifi is temporarily down, so dont overreact, give one chance
+			{
+				nBrokenWIFIConnections++;
+			}
+			else
+			{
+				console.log("restarting access point!" + nBrokenWIFIConnections);
+				WIFI.startAP("landscape", null, function(){console.log("connected as AP");});
+				WIFI.save();
+				ESP8266.reboot();		//seeme to be needed to make AP be accessible correctly	
+			}
+		}
+		// else if connected to a station, AND AP is enabled, turn it off, since not good to have on when connected to station
+		else if(oState.station === "connected" && oState.ap === "enabled")
+		{
+			//access point is still enabled, but connected to wifi, so its safe to turn off, and start the nightly process
+			console("turning off AP, and making callout for weather and time");
+			WIFI.stopAP();		//needed for memory reasons!
+			nBrokenWIFIConnections = 0;	//reset the counter, found a good connection!
+		}
+
+		//if connected to a station, start things off
+		if( oState.station === "connected" && oState.ap !== "enabled" && !fLightsStarted)
+		{
+			fLightsStarted = true;
+			console.log("Already had conn, starting.  Reset count: " + nBrokenWIFIConnections);
+			if(!dateIsSet())
+			{
+				setSnTP();
+				WIFI.save();
+			}
+			setTimeout(getWeather, 60000);
+		}
 	}
 
-	//if connected to a station, start things off
-	if(oState && oState.station && oState.station === "connected" && oState.ap !== "enabled" && !fLightsStarted)
-	{
-		fLightsStarted = true;
-		console.log("already had conn, starting");
-		if(!dateIsSet())
-		{
-			setSnTP();
-		}
-		setTimeout(getWeather, 60000);
-	}
 }
 
 function dateIsSet()
@@ -258,12 +273,8 @@ function getPage(req,res)
 				//good news, do all the fun stuff with connection to AP
 				WIFI.connect(oUrl.query.s, {password:(oUrl.query.p?oUrl.query.p:"")}, 
 				function(ap){ 
-					var nRand = ((new Date()).getTime() + "").substr(10,2);
-					console.log("connected:" + nRand); 
-					WIFI.stopAP();
-					WIFI.setHostname("landscape" + nRand);
-					setSnTP();
-					WIFI.save(); 
+					//all actions of consequence are done by the hourly loop (SNTP, etc)
+					console.log("connected to " + oUrl.query.s); 
 					}
 				);
 			}
@@ -302,7 +313,6 @@ function getPage(req,res)
 			getWeather();
 		}
 
-
 		res.write(
 			getHTMLRow('System time', dateString(new Date())) + 
 			getInputRow('Zip Code','z', ZIP) +
@@ -316,7 +326,8 @@ function getPage(req,res)
 		{
 			res.write(getHTMLRow('WebPage loads',nPageLoads) +
 				getHTMLRow('Host',JSON.stringify(WIFI.getIP())) + 
-				getHTMLRow('Status',sMode)
+				getHTMLRow('Status',sMode) +
+				getHTMLRow('Bad Station Count',nBrokenWIFIConnections)
 			);
 		}
 	}

@@ -70,7 +70,7 @@ function checkConnection(oState)
 			WIFI.startAP("landscape", null, function(){console.log("connected as AP");});
 			WIFI.save();
 			fLightsStarted = false;	//something happened, so reset system.  when we do get a connection again, we will now know to start system again!
-			ESP8266.reboot();		//seeme to be needed to make AP be accessible correctly
+			ESP8266.reboot();		//seeme to be needed to make AP be accessible correctly				
 		}
 		// else if connected to a station, AND AP is enabled, turn it off, since not good to have on when connected to station
 		else if( oState.station === "connected" && oState.ap === "enabled")
@@ -85,9 +85,7 @@ function checkConnection(oState)
 		{
 			fLightsStarted = true;
 			console.log("great, we are connected as a station!");
-			
 		}
-		
 	}
 }
 
