@@ -59,6 +59,7 @@ function initializeLightingSystem()
 {
 	setMode("initializing System.", 10000);
 	nPageLoads = 0;
+	fLightsStarted = false;
 	setPin(false);	//turn off the light
 	startWebserver();
 	loopToStartAP();
@@ -110,15 +111,25 @@ function checkConnection(oState)
 		{
 			fLightsStarted = true;
 			console.log("Already had conn, starting.  Reset count: " + nBrokenWIFIConnections);
-			if(!dateIsSet())
-			{
-				setSnTP();
-				WIFI.save();
-			}
 			setTimeout(getWeather, 60000);
 		}
 	}
+	if(!dateIsSet())
+	{
+		setSnTP();
+		WIFI.save();
+	}
+	pingSite();
+}
 
+function pingSite()
+{
+	var sSite = 'http://cloudservices-willcode.rhcloud.com/';
+	HTTP.get(sSite, function(res) 
+	{
+		res.on('data', function(sdta) { sdta; });
+		res.on('close', function(fLoaded) {fLoaded;});
+	})
 }
 
 function dateIsSet()
