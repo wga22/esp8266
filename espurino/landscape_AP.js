@@ -4,15 +4,41 @@
 	TODO: 
 		rename global variables (or put into a hashmap?)
 		implement reset / deepsleep?
-		store zip and other values in flash
-			
-			E.toString(E.toUint8Array("mcdonalds"))
-			>flash.read(12,487424)
-			var flash = require("Flash")
+				
 	Created: April 2016
 	Modified:
 	REQUIRED:  
 */
+
+/*
+//flash test
+//read the flash available
+ESP8266.getFreeFlash();
+var FLASHLOC = 487424;
+var flash = require("Flash");
+var flashPage = flash.getPage(FLASHLOC);
+flash.read(2, FLASHLOC);
+var nHR =6;
+var nMinDelay = 32;
+var nZIP = 99999;
+var u8Arr = E.toUint8Array(((nZIP & 0xff0000)>>16), ((nZIP & 0x00ff00)>>8), (nZIP & 0x0000ff), nHR, nMinDelay);  
+
+(u8Arr[0] << 16) + (u8Arr[1] << 8) + (u8Arr[2]) 
+
+//write zip
+E.toUint8Array("mcdonalds");
+
+E.toString(E.toUint8Array("mcdonalds"))
+
+		store zip and other values in flash
+		
+			E.toString(E.toUint8Array("mcdonalds"))
+			>flash.read(12,487424)
+			
+
+
+*/
+
 
 //Global requires
 var HTTP = require("http");
