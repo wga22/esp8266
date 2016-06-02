@@ -14,8 +14,7 @@
 //flash test
 //read the flash available
 ESP8266.getFreeFlash();
-var FLASHLOC = 487424;
-var flash = require("Flash");
+var FLASHLOC = ESP8266.getFreeFlash()[0].addr;
 var flashPage = flash.getPage(FLASHLOC);
 flash.read(2, FLASHLOC);
 var nHR =6;
@@ -23,13 +22,10 @@ var nMinDelay = 32;
 var nZIP = 99999;
 var u8Arr = E.toUint8Array(((nZIP & 0xff0000)>>16), ((nZIP & 0x00ff00)>>8), (nZIP & 0x0000ff), nHR, nMinDelay);  
 
-(u8Arr[0] << 16) + (u8Arr[1] << 8) + (u8Arr[2]) 
-
 //write zip
 E.toUint8Array("mcdonalds");
 
 E.toString(E.toUint8Array("mcdonalds"))
-
 		store zip and other values in flash
 		
 			E.toString(E.toUint8Array("mcdonalds"))
@@ -39,11 +35,11 @@ E.toString(E.toUint8Array("mcdonalds"))
 
 */
 
-
 //Global requires
 var HTTP = require("http");
 var WIFI = require("Wifi");
 var ESP8266 = require("ESP8266");
+var flash = require("Flash");
 
 //Global Constants / strings
 var PINOUT = D2;
@@ -63,15 +59,24 @@ var fIsOn = false;
 var ZIP = '22182';
 var NDELAYMINS = 5;
 var durationForLights = 5;  //hours
+var NTZ = -4;
 var nSleepToDateMillis = 0;
 var sMode = "nothing";
 var fLightsStarted = false;
-var NTZ = -4;
 var NMILIPERMIN = 60000;
 var NMILISPERHOUR = 60*NMILIPERMIN;
+var FLASHLOC = -1;
 
 function onInit()
 {
+	try
+	{
+		FLASHLOC = ESP8266.getFreeFlash()[0].addr;		
+	}
+	catch(e)
+	{
+		console.log("issue getting a spot for the FLASH");
+	}
 	setTimeout(initializeLightingSystem, 15000);
 }
 
@@ -339,17 +344,25 @@ function getPage(req,res)
 	}
 	else  //normal page
 	{
-		if(oUrl && oUrl.query && oUrl.query.z && parseInt(oUrl.query.z, 10) && parseInt(oUrl.query.z, 10).length==5)
+		var fSomethingChanged = false;
+		if(oUrl && oUrl.query && oUrl.query.z && parseInt(oUrl.query.z, 10) && parseInt(oUrl.query.z, 10).length==5 && parseInt(oUrl.query.z, 10)!=ZIP)
 		{
 			ZIP = parseInt(oUrl.query.z, 10);
+			fSomethingChanged = true;
 		}
-		if(oUrl && oUrl.query && oUrl.query.d && parseInt(oUrl.query.d, 10))
+		if(oUrl && oUrl.query && oUrl.query.d && parseInt(oUrl.query.d, 10)&&durationForLights != parseInt(oUrl.query.d, 10))
 		{
 			durationForLights = parseInt(oUrl.query.d, 10);
+			fSomethingChanged = true;
 		}
-		if(oUrl && oUrl.query && oUrl.query.m && parseInt(oUrl.query.m, 10))
+		if(oUrl && oUrl.query && oUrl.query.m && parseInt(oUrl.query.m, 10) && NDELAYMINS != parseInt(oUrl.query.m, 10))
 		{
 			NDELAYMINS = parseInt(oUrl.query.m, 10);
+			fSomethingChanged = true;
+		}
+		if(fSomethingChanged)
+		{
+			writeValuesToFlash();
 		}
 
 		if(req.url ==  "/toggle")
@@ -415,5 +428,65 @@ function fixMinutes(nMins)
 		}
 	}
 	return sMins;
+}
+function readValuesFromFlash()
+{
+	if(FLASHLOC > -1)
+	{
+		var u8FVals = flash.read(64, FLASHLOC);
+		var sVals = E.toString(u8FVals);
+		if(sVals && sVals.length > 0 && sVals.indexOf("|",0)>-1)
+		{
+			var aParts = sVals.split("|");
+			if(aParts.length >= 3)
+			{
+				ZIP = aParts[0];
+				var nDelay = parseInt(aParts[1],10);
+				if(nDelay > -1 && nDelay != NDELAYMINS)
+				{
+					NDELAYMINS = nDelay;
+				}
+				var nDur = parseInt(aParts[2],10);
+				if(nDelay > -1 && nDur != durationForLights)
+				{
+					durationForLights = nDelay;
+				}
+			}
+		}
+	}
+}
+
+function writeValuesToFlash()
+{
+    var sSaveString = ZIP + "|" + NDELAYMINS + "|" + durationForLights+"|.";
+	while(sSaveString.length % 4 !==0)
+	{
+		sSaveString += "0";
+	}
+	var uaArr = E.toUint8Array(sSaveString);
+	if(FLASHLOC > -1)
+	{
+		flash.erasePage(FLASHLOC);
+		flash.write(uaArr, FLASHLOC);
+	}
+	else
+	{
+		try
+		{
+			FLASHLOC = ESP8266.getFreeFlash()[0].addr;
+		}
+		catch(e){}
+	}
+	return uaArr;
+}
+
+
+function intToUArr(nInt)
+{
+	return [(nInt>>16)&0xff,(nInt>>8)&0xff,nInt&0xff];
+}
+function uArrToInt(uaVal)
+{
+	return ((uaVal[0] * 65536) + (uaVal[1] * 256) + (uaVal[2])); 
 }
 onInit();
