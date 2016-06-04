@@ -159,9 +159,9 @@ function pingSite()
 	var sSite = 'http://cloudservices-willcode.rhcloud.com/';
 	HTTP.get(sSite, function(res) 
 	{
-		res.on('data', function(sdta) { sdta; });
-		res.on('close', function(fLoaded) {fLoaded;});
-	})
+		res.on('data', function(sdta) { });
+		res.on('close', function(fLoaded) {});
+	});
 }
 
 function dateIsSet()
@@ -176,7 +176,7 @@ function fixTimeZone(nWNDHR)
 	//time from wunderground not matching current time, maybe TZ is wrong?!
 	if(dateIsSet() && nCurHr != nWNDHR)
 	{
-      var newOffset = NTZ  + nCurHr - nWNDHR +12;
+      var newOffset = NTZ  - nCurHr + nWNDHR +12;
       newOffset = (newOffset % 24) - 12;
       console.log("TZ: " + NTZ + " changes to " + newOffset );
 	  NTZ = newOffset;
@@ -296,8 +296,8 @@ function _setpin(fSet, sPin)
 	}
 	else
 	{
-		digitalWrite(sPin, 255);  
-	}	
+		digitalWrite(sPin, 255);
+	}
 }
 
 //event for webserver
