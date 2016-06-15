@@ -49,7 +49,7 @@ var HTTP_HEAD = "<!DOCTYPE html><html lang=\"en\"><head><meta name=\"viewport\" 
 var HTTP_STYLE = "<style>.rc{fontWeight:bold;text-align:right} .lc{} .c{text-align: center;} div,input{padding:5px;font-size:1em;} input{width:95%;} body{text-align: center;font-family:verdana;} button{border:0;border-radius:0.3rem;background-color:#1fa3ec;color:#fff;line-height:2.4rem;font-size:1.2rem;width:100%;} .q{float: right;width: 64px;text-align: right;} .l{background: url(\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAALVBMVEX///8EBwfBwsLw8PAzNjaCg4NTVVUjJiZDRUUUFxdiZGSho6OSk5Pg4eFydHTCjaf3AAAAZElEQVQ4je2NSw7AIAhEBamKn97/uMXEGBvozkWb9C2Zx4xzWykBhFAeYp9gkLyZE0zIMno9n4g19hmdY39scwqVkOXaxph0ZCXQcqxSpgQpONa59wkRDOL93eAXvimwlbPbwwVAegLS1HGfZAAAAABJRU5ErkJggg==\") no-repeat left center;background-size: 1em;}</style>";
 var HTTP_HEAD_END = "</head><body><div style='text-align:left;display:inline-block;min-width:260px;'>";
 //var HTTP_PORTAL_OPTIONS  = "<form action=\"/wifi\" method=\"get\"><button>Configure WiFi</button></form><br/><form action=\"/0wifi\" method=\"get\"><button>Configure WiFi (No Scan)</button></form><br/><form action=\"/i\" method=\"get\"><button>Info</button></form><br/><form action=\"/r\" method=\"post\"><button>Reset</button></form>";
-var HTTP_FORM_START = "<form method='get' action='wifisave'><table>";
+var HTTP_FORM_START = "<form method='get' action='save'><table>";
 var HTTP_END = '<tr><td colspan="2"><button type="submit">Save</button></form></td></tr></table></div></body></html>';
 
 //Global working variables/settings
@@ -71,7 +71,8 @@ function onInit()
 {
 	try
 	{
-		FLASHLOC = ESP8266.getFreeFlash()[0].addr;		
+		FLASHLOC = ESP8266.getFreeFlash()[0].addr;
+		ESP8266.setCPUFreq(80);	//save power?		
 	}
 	catch(e)
 	{
@@ -372,9 +373,13 @@ function getPage(req,res)
 		}
 		else if(req.url == "/reset")
 		{
-			getWeather();
+			fLightsStarted = false;
+			loopToStartAP();
 		}
-
+		else if(req.url == "/reboot")
+		{
+			ESP8266.reboot();
+		}
 		res.write(
 			getHTMLRow('System time', dateString(new Date())) + 
 			getInputRow('Zip Code','z', ZIP) +
