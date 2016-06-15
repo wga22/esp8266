@@ -386,7 +386,7 @@ function getPage(req,res)
 			getInputRow('Light Duration (hours)','d', durationForLights) + 
 			getInputRow('Delay from Sunset (mins)','m', NDELAYMINS));
 
-		res.write(getHTMLRow(getButton("toggle", ("Turn " + (fIsOn?"Off":"On"))),getButton("status", ("Status"))));
+		res.write(getHTMLRow(getButton("toggle", ("Turn " + (fIsOn?"Off":"On"))),getButton(((req.url == "/status")? "" : "status"), ("Status"))));
 
 		//add in status values
 		if(req.url == "/status")
@@ -394,6 +394,7 @@ function getPage(req,res)
 			res.write(getHTMLRow('WebPage loads',nPageLoads) +
 				getHTMLRow('Host',JSON.stringify(WIFI.getIP())) + 
 				getHTMLRow('Status',sMode) +
+				getHTMLRow('ESP:',JSON.stringify(ESP8266.getState())) +
 				getHTMLRow('Bad Station Count',nBrokenWIFIConnections)
 			);
 		}
