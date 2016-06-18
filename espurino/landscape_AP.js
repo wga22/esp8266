@@ -486,4 +486,14 @@ function writeValuesToFlash()
 	}
 	return uaArr;
 }
+
+function killWifi()
+{
+	WIFI.disconnect();
+	WIFI.connect("dummy", {password:"dummy"},function(x){});
+	WIFI.save();
+	ESP8266.reboot();
+}
+
+
 onInit();
