@@ -54,10 +54,12 @@ var HTTP_END = '<tr><td colspan="2"><button type="submit">Save</button></form></
 
 //Global working variables/settings
 var nPageLoads = 0;
+var nDaysAlive = 0;
 var nBrokenWIFIConnections = 0;
 var fIsOn = false;
 var ZIP = '22182';
 var NDELAYMINS = 5;
+var MAXDAYSAWAKE = 7;
 var durationForLights = 5;  //hours
 var NTZ = -4;
 var nSleepToDateMillis = 0;
@@ -91,6 +93,7 @@ function initializeLightingSystem()
 {
 	setMode("initializing System.", 10000);
 	nPageLoads = 0;
+	nDaysAlive = 0;
 	readValuesFromFlash();
 	fLightsStarted = false;
 	setPin(false);	//turn off the light
@@ -186,9 +189,20 @@ function fixTimeZone(nWNDHR)
 	}
 }
 
+function fixMemLeaks()
+{
+	//need to handle memory leaks
+	nDaysAlive++;
+	{
+		ESP8266.reboot();
+	}	
+} 	
+
+
 //populate the weather variable with the sunset, etc
 function getWeather()
 {
+	fixMemLeaks();
 	setMode("getting Weather", 2000);
 	getWeather.val = "";
 	HTTP.get((SURLAPI + ZIP + ".json"), function(res) 
@@ -394,6 +408,7 @@ function getPage(req,res)
 			res.write(getHTMLRow('WebPage loads',nPageLoads) +
 				getHTMLRow('Host',JSON.stringify(WIFI.getIP())) + 
 				getHTMLRow('Status',sMode) +
+				getHTMLRow('Days Awake',nDaysAlive) +
 				getHTMLRow('ESP:',JSON.stringify(ESP8266.getState())) +
 				getHTMLRow('Bad Station Count',nBrokenWIFIConnections)
 			);
