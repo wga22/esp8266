@@ -47,10 +47,7 @@ function checkConnectionThenRun(oState)
 	//if not connected to a station, and AP is disabled
 	if(oState && oState.station)
 	{
-		if(oState.ap === "enabled")
-		{
-			WIFI.stopAP();		//needed for memory reasons!
-		}
+		var fWIFIChange = false;
 		if( oState.station != "connected" )
 		{
 				WIFI.connect(SSID, {password:WIFIPASSWORD}, 
@@ -60,11 +57,22 @@ function checkConnectionThenRun(oState)
 					runOperations(-10);
 					}
 				);
+				fWIFIChange = true;
 		}
 		else if(oState.station === "connected")
 		{
 			debugIt("Already connected");
 			runOperations(1000);
+		}
+		if(oState.ap === "enabled")
+		{
+			WIFI.stopAP();		//needed for memory reasons!
+			WIFI.setSNTP('us.pool.ntp.org', -5);
+			fWIFIChange = true;
+		}
+		if(fWIFIChange)
+		{
+			WIFI.save();
 		}
 	}
 }
