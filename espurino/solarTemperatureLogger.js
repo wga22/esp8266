@@ -12,7 +12,6 @@
 var SSID = 'XXXX';
 var WIFIPASSWORD = 'yeah_right';
 
-
 //Global requires
 var HTTP = require("http");
 var WIFI = require("Wifi");
@@ -24,11 +23,16 @@ var NMILIPERMIN = 60000;
 var NMILISPERHOUR = 60*NMILIPERMIN;
 var THINGSPEAKURL = 'http://api.thingspeak.com/update';
 var sThingspeakKey = '0NRCT2ZN3PNTMHUG';
+var fInitialized = false;
 
 function onInit()
 {
-	ESP8266.setCPUFreq(80);	//save power?		
-	setTimeout(hourlyLoop, NMILIPERMIN/4);
+	if(!fInitialized)
+	{
+		fInitialized = true;
+		ESP8266.setCPUFreq(80);	//save power?		
+		setTimeout(hourlyLoop, NMILIPERMIN/4);
+	}
 }
 
 //bailout if wifi no longer connected
@@ -53,14 +57,14 @@ function checkConnectionThenRun(oState)
 				function(ap){ 
 					//all actions of consequence are done by the hourly loop (SNTP, etc)
 					debugIt("Created new connection to " + SSID); 
-					runOperations();
+					runOperations(-10);
 					}
 				);
 		}
 		else if(oState.station === "connected")
 		{
 			debugIt("Already connected");
-			runOperations();
+			runOperations(1000);
 		}
 	}
 }
@@ -71,17 +75,17 @@ function sleepController()
 }
 
 //assume already have connection, or burn!
-function runOperations()
+function runOperations(nFactor)
 {
 	debugIt("running operations");
 	pingSite();
-	postToThingsSpeak();
+	postToThingsSpeak(nFactor);
 	sleepController();
 }
 //http://api.thingspeak.com/update?key=XXXSTG7J8W0DYXXX&field1=93.44&created_at=2012-06-05%2000:15:00
-function postToThingsSpeak()
+function postToThingsSpeak(nFactor)
 {
-	var sURL = THINGSPEAKURL + "?key=" + sThingspeakKey + "&field1=" + getSolarValue();
+	var sURL = THINGSPEAKURL + "?key=" + sThingspeakKey + "&field1=" + getSolarValue(nFactor);
 	debugIt("calling URL" + sURL);
 	HTTP.get(sURL, function(res) 
 	{
@@ -90,9 +94,10 @@ function postToThingsSpeak()
 	});
 }
 
-function getSolarValue()
+function getSolarValue(nFactor)
 {
-	return round2(analogRead(ANALOGPIN)*1000);
+	var nVal = (1-analogRead(ANALOGPIN))*nFactor;
+	return round2(nVal);
 }
 
 function debugIt(sString)
@@ -137,5 +142,4 @@ function fixMinutes(nMins)
 	return sMins;
 }
 
- 
-onInit();
+//onInit();
