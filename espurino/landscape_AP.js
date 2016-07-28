@@ -193,6 +193,7 @@ function fixMemLeaks()
 {
 	//need to handle memory leaks
 	nDaysAlive++;
+	if(nDaysAlive >= MAXDAYSAWAKE)
 	{
 		ESP8266.reboot();
 	}	
