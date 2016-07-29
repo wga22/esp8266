@@ -79,7 +79,11 @@ function checkConnectionThenRun(oState)
 
 function sleepController()
 {
-	//TODO WIFI.disconnect();
+	//switch to control if wifi is totally disconnected
+	if(digitalRead(D13)===0)
+	{
+		WIFI.disconnect();
+	}
 }
 
 //assume already have connection, or burn!
@@ -104,7 +108,9 @@ function postToThingsSpeak(nFactor)
 
 function getSolarValue(nFactor)
 {
+	digitalWrite(D4,1);	//turn on the solar resistor
 	var nVal = (1-analogRead(ANALOGPIN))*nFactor;
+	digitalWrite(D4,0); //turn off the solar resistor
 	return round2(nVal);
 }
 
