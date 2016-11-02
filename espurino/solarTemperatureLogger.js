@@ -67,11 +67,11 @@ function checkConnectionThenRun(oState)
 		if(oState.ap === "enabled")
 		{
 			WIFI.stopAP();		//needed for memory reasons!
-			WIFI.setSNTP('us.pool.ntp.org', -5);
 			fWIFIChange = true;
 		}
 		if(fWIFIChange)
 		{
+			WIFI.setSNTP('us.pool.ntp.org', -5);
 			WIFI.save();
 		}
 	}
@@ -82,6 +82,7 @@ function sleepController()
 	//switch to control if wifi is totally disconnected
 	if(digitalRead(D13)===0)
 	{
+		debugIt("turning off wifi!");
 		WIFI.disconnect();
 	}
 }
@@ -92,7 +93,7 @@ function runOperations(nFactor)
 	debugIt("running operations");
 	pingSite();
 	postToThingsSpeak(nFactor);
-	sleepController();
+	setTimeout(sleepController, NMILIPERMIN);	//sleep a minute, before considering turning off the wifi connection
 }
 //http://api.thingspeak.com/update?key=XXXSTG7J8W0DYXXX&field1=93.44&created_at=2012-06-05%2000:15:00
 function postToThingsSpeak(nFactor)
