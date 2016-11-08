@@ -43,7 +43,7 @@ var flash = require("Flash");
 
 //Global Constants / strings
 var PINOUT = D2;
-var STITLE = "Landscape Timer by Will Allen - V33 (2016-06-02)";
+var STITLE = "Landscape Timer by Will Allen - V34 (2016-11-07)";
 var SURLAPI = 'http://api.wunderground.com/api/13db05c35598dd93/astronomy/q/';
 var HTTP_HEAD = "<!DOCTYPE html><html lang=\"en\"><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, user-scalable=no\"/><link rel=\"icon\" type=\"image/png\" href=\"http://i.imgur.com/87R4ig5.png\">";
 var HTTP_STYLE = "<style>.rc{fontWeight:bold;text-align:right} .lc{} .c{text-align: center;} div,input{padding:5px;font-size:1em;} input{width:95%;} body{text-align: center;font-family:verdana;} button{border:0;border-radius:0.3rem;background-color:#1fa3ec;color:#fff;line-height:2.4rem;font-size:1.2rem;width:100%;} .q{float: right;width: 64px;text-align: right;} .l{background: url(\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAALVBMVEX///8EBwfBwsLw8PAzNjaCg4NTVVUjJiZDRUUUFxdiZGSho6OSk5Pg4eFydHTCjaf3AAAAZElEQVQ4je2NSw7AIAhEBamKn97/uMXEGBvozkWb9C2Zx4xzWykBhFAeYp9gkLyZE0zIMno9n4g19hmdY39scwqVkOXaxph0ZCXQcqxSpgQpONa59wkRDOL93eAXvimwlbPbwwVAegLS1HGfZAAAAABJRU5ErkJggg==\") no-repeat left center;background-size: 1em;}</style>";
@@ -68,6 +68,7 @@ var fLightsStarted = false;
 var NMILIPERMIN = 60000;
 var NMILISPERHOUR = 60*NMILIPERMIN;
 var FLASHLOC = -1;
+var SUNSETTIME = "UNDEF";
 
 function onInit()
 {
@@ -121,6 +122,7 @@ function checkConnection(oState)
 	{
 		if(oState.station != "connected" && oState.ap != "enabled")
 		{
+			SUNSETTIME = "Cannot connect to WIFI";
 			if(fLightsStarted && nBrokenWIFIConnections < 24)	//maybe wifi is temporarily down, so dont overreact, give one chance
 			{
 				nBrokenWIFIConnections++;
@@ -220,9 +222,9 @@ function getWeather()
 			var nCTHr = parseInt(oWeather.moon_phase.current_time.hour,10);
 			var nCTMn = parseInt(oWeather.moon_phase.current_time.minute,10);
 			var nMilisToSunset = ((nSSMn - nCTMn) * NMILIPERMIN) + ((nSSHr - nCTHr) * NMILISPERHOUR);
-
+			SUNSETTIME = nSSHr + ":" + (nSSMn > 9 ? nSSMn : ("0"+nSSMn));
 			//make sure its in middle of the hour
-			if(nCTMn > 5 && nCTMn < 55 )
+			if(nCTMn > 3 && nCTMn < 57 )
 			{
 				fixTimeZone(nCTHr);	
 			}
@@ -397,6 +399,7 @@ function getPage(req,res)
 		}
 		res.write(
 			getHTMLRow('System time', dateString(new Date())) + 
+			getHTMLRow('Sunset', SUNSETTIME) + 
 			getInputRow('Zip Code','z', ZIP) +
 			getInputRow('Light Duration (hours)','d', durationForLights) + 
 			getInputRow('Delay from Sunset (mins)','m', NDELAYMINS));
