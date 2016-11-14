@@ -182,12 +182,12 @@ function fixTimeZone(nWNDHR)
 	//time from wunderground not matching current time, maybe TZ is wrong?!
 	if(dateIsSet() && nCurHr != nWNDHR)
 	{
-      var newOffset = NTZ  - nCurHr + nWNDHR +12;
-      newOffset = (newOffset % 24) - 12;
-      console.log("TZ: " + NTZ + " changes to " + newOffset );
-	  NTZ = newOffset;
-      setSnTP();
-	  WIFI.save();
+		var newOffset = NTZ  - nCurHr + nWNDHR +12;
+		newOffset = (newOffset % 24) - 12;
+		console.log("TZ: " + NTZ + " changes to " + newOffset );
+		NTZ = newOffset;
+		setSnTP();
+		WIFI.save();
 	}
 }
 
@@ -198,8 +198,8 @@ function fixMemLeaks()
 	if(nDaysAlive >= MAXDAYSAWAKE)
 	{
 		ESP8266.reboot();
-	}	
-} 	
+	}
+}
 
 
 //populate the weather variable with the sunset, etc
