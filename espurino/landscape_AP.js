@@ -188,16 +188,13 @@ function fixTimeZone(nWNDHR)
 		newOffset = (newOffset % 24) - 12;
 		console.log("TZ: " + NTZ + " changes to " + newOffset );
 		NTZ = newOffset;
-<<<<<<< HEAD
 		setSNTPServer();
 	}
 	else if (!fDateSet)
 	{
 		setSNTPServer();
-=======
 		setSnTP();
 		WIFI.save();
->>>>>>> origin/master
 	}
 }
 
