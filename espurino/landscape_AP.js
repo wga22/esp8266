@@ -193,8 +193,6 @@ function fixTimeZone(nWNDHR)
 	else if (!fDateSet)
 	{
 		setSNTPServer();
-		setSnTP();
-		WIFI.save();
 	}
 }
 
