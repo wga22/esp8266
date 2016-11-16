@@ -43,7 +43,7 @@ var flash = require("Flash");
 
 //Global Constants / strings
 var PINOUT = D2;
-var STITLE = "Landscape Timer by Will Allen - V34 (2016-11-07)";
+var STITLE = "Landscape Timer by Will Allen - V35 (2016-11-22)";
 var SURLAPI = 'http://api.wunderground.com/api/13db05c35598dd93/astronomy/q/';
 var HTTP_HEAD = "<!DOCTYPE html><html lang=\"en\"><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, user-scalable=no\"/><link rel=\"icon\" type=\"image/png\" href=\"http://i.imgur.com/87R4ig5.png\">";
 var HTTP_STYLE = "<style>.rc{fontWeight:bold;text-align:right} .lc{} .c{text-align: center;} div,input{padding:5px;font-size:1em;} input{width:95%;} body{text-align: center;font-family:verdana;} button{border:0;border-radius:0.3rem;background-color:#1fa3ec;color:#fff;line-height:2.4rem;font-size:1.2rem;width:100%;} .q{float: right;width: 64px;text-align: right;} .l{background: url(\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAALVBMVEX///8EBwfBwsLw8PAzNjaCg4NTVVUjJiZDRUUUFxdiZGSho6OSk5Pg4eFydHTCjaf3AAAAZElEQVQ4je2NSw7AIAhEBamKn97/uMXEGBvozkWb9C2Zx4xzWykBhFAeYp9gkLyZE0zIMno9n4g19hmdY39scwqVkOXaxph0ZCXQcqxSpgQpONa59wkRDOL93eAXvimwlbPbwwVAegLS1HGfZAAAAABJRU5ErkJggg==\") no-repeat left center;background-size: 1em;}</style>";
@@ -56,7 +56,6 @@ var HTTP_END = '<tr><td colspan="2"><button type="submit">Save</button></form></
 var nPageLoads = 0;
 var nDaysAlive = 0;
 var nBrokenWIFIConnections = 0;
-var fIsOn = false;
 var ZIP = '22182';
 var NDELAYMINS = 5;
 var MAXDAYSAWAKE = 7;
@@ -64,11 +63,14 @@ var durationForLights = 5;  //hours
 var NTZ = -4;
 var nSleepToDateMillis = 0;
 var sMode = "nothing";
-var fLightsStarted = false;
 var NMILIPERMIN = 60000;
 var NMILISPERHOUR = 60*NMILIPERMIN;
 var FLASHLOC = -1;
 var SUNSETTIME = "UNDEF";
+
+//flags
+var fIsOn = false;	//light is on or off
+var fTimerToTurnOffLightsCalled = false;	//sleep timer has been set to turn off lights (only want it running 1x to avoid multiple threads)
 
 function onInit()
 {
@@ -96,23 +98,22 @@ function initializeLightingSystem()
 	nPageLoads = 0;
 	nDaysAlive = 0;
 	readValuesFromFlash();
-	fLightsStarted = false;
 	setPin(false);	//turn off the light
 	startWebserver();
-	loopToStartAP();
+	checkConnectionThenStart();
 }
 
-//bailout if wifi no longer connected
-function loopToStartAP()
-{
-	WIFI.getStatus(checkConnection);
-	setTimeout(loopToStartAP, NMILISPERHOUR);//check 1x an hour to see if AP needs to be started
-}
-function setSnTP()
+function setSNTPServer()
 {
 	var sHost = 'us.pool.ntp.org';
 	console.log("set SNTP:" + sHost + " TZ:" + NTZ);
 	WIFI.setSNTP(sHost, NTZ);
+	WIFI.save();
+}
+
+function checkConnectionThenStart()
+{
+	WIFI.getStatus(checkConnection);
 }
 
 function checkConnection(oState)
@@ -123,7 +124,7 @@ function checkConnection(oState)
 		if(oState.station != "connected" && oState.ap != "enabled")
 		{
 			SUNSETTIME = "Cannot connect to WIFI";
-			if(fLightsStarted && nBrokenWIFIConnections < 24)	//maybe wifi is temporarily down, so dont overreact, give one chance
+			if(nBrokenWIFIConnections < 24)	//maybe wifi is temporarily down, so dont overreact, give one chance
 			{
 				nBrokenWIFIConnections++;
 			}
@@ -132,7 +133,7 @@ function checkConnection(oState)
 				console.log("restarting access point!" + nBrokenWIFIConnections);
 				WIFI.startAP("landscape", null, function(){console.log("connected as AP");});
 				WIFI.save();
-				ESP8266.reboot();		//seeme to be needed to make AP be accessible correctly	
+				ESP8266.reboot();		//seeme to be needed to make AP be accessible correctly
 			}
 		}
 		// else if connected to a station, AND AP is enabled, turn it off, since not good to have on when connected to station
@@ -141,23 +142,23 @@ function checkConnection(oState)
 			//access point is still enabled, but connected to wifi, so its safe to turn off, and start the nightly process
 			console("turning off AP, and making callout for weather and time");
 			WIFI.stopAP();		//needed for memory reasons!
-			nBrokenWIFIConnections = 0;	//reset the counter, found a good connection!
+			WIFI.save();
 		}
 
 		//if connected to a station, start things off
-		if( oState.station === "connected" && oState.ap !== "enabled" && !fLightsStarted)
+		if( oState.station === "connected")
 		{
-			fLightsStarted = true;
 			console.log("Already had conn, starting.  Reset count: " + nBrokenWIFIConnections);
 			setTimeout(getWeather, 60000);
+			nBrokenWIFIConnections = 0;	//reset the counter, found a good connection!
+		}
+		else //sleep an hour, then try again!
+		{
+			nBrokenWIFIConnections++;
+			console.log("Couldn't get a connection");
+			setTimeout(checkConnectionThenStart, NMILISPERHOUR);		
 		}
 	}
-	if(!dateIsSet())
-	{
-		setSnTP();
-		WIFI.save();
-	}
-	pingSite();
 }
 
 function pingSite()
@@ -180,14 +181,18 @@ function fixTimeZone(nWNDHR)
 	var oDate = new Date();
 	var nCurHr = oDate.getHours();
 	//time from wunderground not matching current time, maybe TZ is wrong?!
-	if(dateIsSet() && nCurHr != nWNDHR)
+	var fDateSet = dateIsSet();
+	if(fDateSet && nCurHr != nWNDHR)
 	{
-      var newOffset = NTZ  - nCurHr + nWNDHR +12;
-      newOffset = (newOffset % 24) - 12;
-      console.log("TZ: " + NTZ + " changes to " + newOffset );
-	  NTZ = newOffset;
-      setSnTP();
-	  WIFI.save();
+		var newOffset = NTZ  - nCurHr + nWNDHR +12;
+		newOffset = (newOffset % 24) - 12;
+		console.log("TZ: " + NTZ + " changes to " + newOffset );
+		NTZ = newOffset;
+		setSNTPServer();
+	}
+	else if (!fDateSet)
+	{
+		setSNTPServer();
 	}
 }
 
@@ -198,14 +203,15 @@ function fixMemLeaks()
 	if(nDaysAlive >= MAXDAYSAWAKE)
 	{
 		ESP8266.reboot();
-	}	
-} 	
+	}
+}
 
 
 //populate the weather variable with the sunset, etc
 function getWeather()
 {
 	fixMemLeaks();
+	//getting weather now, so allow another process to get weather
 	setMode("getting Weather", 2000);
 	getWeather.val = "";
 	HTTP.get((SURLAPI + ZIP + ".json"), function(res) 
@@ -228,7 +234,6 @@ function getWeather()
 			{
 				fixTimeZone(nCTHr);	
 			}
-
 			//either not yet sunset
 			if(nMilisToSunset > 0)
 			{
@@ -248,7 +253,7 @@ function getWeather()
 			}
 		});
 	});
-  //what to do if didnt get?
+	pingSite();
 }
 getWeather.val = "";
 
@@ -270,15 +275,20 @@ function turnOnLights()
   setPin(true);
   var nMilisForLights = durationForLights*NMILISPERHOUR;
   setMode("after sunset, running lights", "Turn off Lights", nMilisForLights);
-  setTimeout(turnOffLights, (nMilisForLights));
+  if(!fTimerToTurnOffLights)  //keep lights from turning off more than once, and starting multiple threads
+  {
+	fTimerToTurnOffLights = true;
+	setTimeout(turnOffLights, (nMilisForLights));  
+  }
 }
 
 function turnOffLights(sMessage)
 {
-  setPin(false);
-  var nSleepTilMorning = (12*NMILISPERHOUR);
-  setMode(("Lights off" + (sMessage ? sMessage : "")), "Get Weather", nSleepTilMorning);
-  setTimeout(getWeather, nSleepTilMorning);
+	setPin(false);
+	var nSleepTilMorning = (12*NMILISPERHOUR);
+	setMode(("Lights off" + (sMessage ? sMessage : "")), "Get Weather", nSleepTilMorning);
+	fTimerToTurnOffLights = false;
+	setTimeout(checkConnectionThenStart, nSleepTilMorning);  
 }
 
 function dateString(a_dDate)
@@ -359,7 +369,7 @@ function getPage(req,res)
 		else  //write out the form for the SSID and password
 		{
 			res.write(getInputRow('SSID', 's', 'SSID', 32) + getInputRow('Password','p', 'password', 64) );
-		}		
+		}
 	}
 	else  //normal page
 	{
@@ -390,8 +400,7 @@ function getPage(req,res)
 		}
 		else if(req.url == "/reset")
 		{
-			fLightsStarted = false;
-			loopToStartAP();
+			checkConnectionThenStart();
 		}
 		else if(req.url == "/reboot")
 		{
