@@ -522,6 +522,3 @@ function killWifi()
 	WIFI.save();
 	ESP8266.reboot();
 }
-
-
-onInit();
