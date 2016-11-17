@@ -245,12 +245,7 @@ function getWeather()
 				console.log("after sunset, before lights off");
 				turnOnLights();
 			}
-			else
-			{
-				var sMessage = "after sunset too late for lights";
-				console.log(sMessage);
-				turnOffLights(sMessage);
-			}
+			setTimeout(checkConnectionThenStart, (14*NMILISPERHOUR+nMilisToSunset));	//tomorrow do it all over again!
 		});
 	});
 	pingSite();
@@ -285,10 +280,8 @@ function turnOnLights()
 function turnOffLights(sMessage)
 {
 	setPin(false);
-	var nSleepTilMorning = (12*NMILISPERHOUR);
-	setMode(("Lights off" + (sMessage ? sMessage : "")), "Get Weather", nSleepTilMorning);
-	fTimerToTurnOffLights = false;
-	setTimeout(checkConnectionThenStart, nSleepTilMorning);  
+	setMode("Lights off" + (sMessage ? sMessage : ""));
+	fTimerToTurnOffLights = false;  
 }
 
 function dateString(a_dDate)
