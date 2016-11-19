@@ -70,7 +70,6 @@ var SUNSETTIME = "UNDEF";
 
 //flags
 var fIsOn = false;	//light is on or off
-var fTimerToTurnOffLightsCalled = false;	//sleep timer has been set to turn off lights (only want it running 1x to avoid multiple threads)
 
 function onInit()
 {
@@ -101,7 +100,9 @@ function initializeLightingSystem()
 	setPin(false);	//turn off the light
 	startWebserver();
 	checkConnectionThenStart();
+	setSNTPServer();
 }
+
 
 function setSNTPServer()
 {
@@ -188,11 +189,7 @@ function fixTimeZone(nWNDHR)
 		newOffset = (newOffset % 24) - 12;
 		console.log("TZ: " + NTZ + " changes to " + newOffset );
 		NTZ = newOffset;
-		setSNTPServer();
-	}
-	else if (!fDateSet)
-	{
-		setSNTPServer();
+		setSNTPServer();	//needed to update timezone
 	}
 }
 
@@ -245,7 +242,7 @@ function getWeather()
 				console.log("after sunset, before lights off");
 				turnOnLights();
 			}
-			setTimeout(checkConnectionThenStart, (14*NMILISPERHOUR+nMilisToSunset));	//tomorrow do it all over again!
+			setTimeout(checkConnectionThenStart, ((14*NMILISPERHOUR)+nMilisToSunset));	//tomorrow do it all over again!
 		});
 	});
 	pingSite();
@@ -260,21 +257,16 @@ function toggleLights()
 	}
 	else
 	{
-		//TODO: worry about too many threads??
 		turnOnLights();	//use function, so lights are never on indefinitely
 	}
 }
 
 function turnOnLights()
 {
-  setPin(true);
-  var nMilisForLights = durationForLights*NMILISPERHOUR;
-  setMode("after sunset, running lights", "Turn off Lights", nMilisForLights);
-  if(!fTimerToTurnOffLights)  //keep lights from turning off more than once, and starting multiple threads
-  {
-	fTimerToTurnOffLights = true;
+	setPin(true);
+	var nMilisForLights = durationForLights*NMILISPERHOUR;
+	setMode("after sunset, running lights", "Turn off Lights", nMilisForLights);
 	setTimeout(turnOffLights, (nMilisForLights));  
-  }
 }
 
 function turnOffLights(sMessage)
@@ -399,6 +391,12 @@ function getPage(req,res)
 		{
 			ESP8266.reboot();
 		}
+
+		if (!fDateSet)
+		{
+			setSNTPServer();
+		}
+		
 		res.write(
 			getHTMLRow('System time', dateString(new Date())) + 
 			getHTMLRow('Sunset', SUNSETTIME) + 
