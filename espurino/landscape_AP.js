@@ -182,8 +182,7 @@ function fixTimeZone(nWNDHR)
 	var oDate = new Date();
 	var nCurHr = oDate.getHours();
 	//time from wunderground not matching current time, maybe TZ is wrong?!
-	var fDateSet = dateIsSet();
-	if(fDateSet && nCurHr != nWNDHR)
+	if(dateIsSet() && nCurHr != nWNDHR)
 	{
 		var newOffset = NTZ  - nCurHr + nWNDHR +12;
 		newOffset = (newOffset % 24) - 12;
@@ -392,7 +391,7 @@ function getPage(req,res)
 			ESP8266.reboot();
 		}
 
-		if (!fDateSet)
+		if (!dateIsSet())
 		{
 			setSNTPServer();
 		}
