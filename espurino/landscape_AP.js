@@ -272,7 +272,6 @@ function turnOffLights(sMessage)
 {
 	setPin(false);
 	setMode("Lights off" + (sMessage ? sMessage : ""));
-	fTimerToTurnOffLights = false;  
 }
 
 function dateString(a_dDate)
