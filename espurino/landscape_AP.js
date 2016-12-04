@@ -79,7 +79,7 @@ function onInit()
 	{
 		console.log("issue getting a spot for the FLASH");
 	}
-	setTimeout(initializeLightingSystem, 15000);
+	setTimeout(initializeLightingSystem, NMILIPERMIN/6);
 }
 
 function startWebserver()
@@ -90,7 +90,7 @@ function startWebserver()
 
 function initializeLightingSystem()
 {
-	setMode("initializing System.", 10000);
+	setMode("initializing System.", NMILIPERMIN/6);
 	nPageLoads = 0;
 	nDaysAlive = 0;
 	readValuesFromFlash();
@@ -147,7 +147,7 @@ function checkConnection(oState)
 		if( oState.station === "connected")
 		{
 			console.log("Already had conn, starting.  Reset count: " + nBrokenWIFIConnections);
-			setTimeout(getWeather, 60000);
+			getWeather();
 			nBrokenWIFIConnections = 0;	//reset the counter, found a good connection!
 		}
 		else //sleep an hour, then try again!
@@ -165,7 +165,7 @@ function pingSite()
 	HTTP.get(sSite, function(res) 
 	{
 		res.on('data', function(sdta) { });
-		res.on('close', function(fLoaded) {});
+		res.on('close', function(fLoaded) {console.log("loaded site rhcloud");});
 	});
 }
 
@@ -205,7 +205,7 @@ function getWeather()
 {
 	//fixMemLeaks();
 	//getting weather now, so allow another process to get weather
-	setMode("getting Weather", 2000);
+	setMode("getting Weather", NMILIPERMIN/10);
 	getWeather.val = "";
 	HTTP.get((SURLAPI + ZIP + ".json"), function(res) 
 	{
@@ -238,10 +238,10 @@ function getWeather()
 				console.log("after sunset, before lights off");
 				turnOnLights();
 			}
-			setTimeout(checkConnectionThenStart, ((14*NMILISPERHOUR)+nMilisToSunset));	//tomorrow do it all over again!
+			setTimeout(checkConnectionThenStart, (14*NMILISPERHOUR));	//tomorrow do it all over again!
 		});
 	});
-	setTimeout(pingSite, 2000);
+	setTimeout(pingSite, NMILIPERMIN);
 }
 getWeather.val = "";
 
@@ -318,7 +318,7 @@ function getPage(req,res)
 	res.write(HTTP_HEAD);
 	res.write(HTTP_STYLE);
 	res.write('<title>'+STITLE+'</title><link rel="icon" type="image/png" href="http://i.imgur.com/87R4ig5.png"/>');
-	res.write(HTTP_HEAD_END + "<h2>Welcome to "+STITLE+"</h2>");
+	res.write(HTTP_HEAD_END + '<h2>Welcome to '+STITLE+'</h2>');
 	res.write(HTTP_FORM_START);
 
 	//see if connected to an access point...
@@ -328,8 +328,7 @@ function getPage(req,res)
 		//see if user is submitting AP details
 		if(oUrl && oUrl.query && oUrl.query.s)
 		{
-			console.log("attempting to connect to " + oUrl.query.s);
-			res.write("<li>Connecting to " + oUrl.query.s+"</li>");
+			console.log('attempting to connect to ' + oUrl.query.s);
 			try
 			{
 				//good news, do all the fun stuff with connection to AP
@@ -342,7 +341,7 @@ function getPage(req,res)
 			}
 			catch(e)
 			{
-				res.write(getHTMLRow("failed to connect to", oUrl.query.s));
+				res.write(getHTMLRow('failed to connect to', oUrl.query.s));
 				console.log("failed to connect:" +e);
 			}
 		}
@@ -376,20 +375,22 @@ function getPage(req,res)
 
 		if(req.url ==  "/toggle")
 		{
-			toggleLights();
+			setTimeout(toggleLights, 1000);
 		}
 		else if(req.url == "/reset")
 		{
-			checkConnectionThenStart();
+			setTimeout(checkConnectionThenStart, 2000);
 		}
 		else if(req.url == "/reboot")
 		{
 			ESP8266.reboot();
+			res.end();
+			return;
 		}
 
 		if (!dateIsSet())
 		{
-			setSNTPServer();
+			setTimeout(setSNTPServer, 2000);
 		}
 
 		res.write(
