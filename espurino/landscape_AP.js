@@ -79,6 +79,7 @@ function onInit()
 	{
 		console.log("issue getting a spot for the FLASH");
 	}
+	clearInterval();
 	setTimeout(initializeLightingSystem, NMILIPERMIN/6);
 }
 
@@ -94,6 +95,7 @@ function initializeLightingSystem()
 	nPageLoads = 0;
 	nDaysAlive = 0;
 	readValuesFromFlash();
+	setInterval(function(){}, NMILISPERHOUR);
 	setPin(false);	//turn off the light
 	startWebserver();
 	checkConnectionThenStart();
@@ -329,6 +331,7 @@ function getPage(req,res)
 		if(oUrl && oUrl.query && oUrl.query.s)
 		{
 			console.log('attempting to connect to ' + oUrl.query.s);
+			res.write('<li>Connecting to ' + oUrl.query.s+'</li>');
 			try
 			{
 				//good news, do all the fun stuff with connection to AP
