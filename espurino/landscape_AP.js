@@ -54,7 +54,7 @@ var HTTP_END = '<tr><td colspan="2"><button type="submit">Save</button></form></
 var fIsOn = false;
 var nPageLoads = 0;
 var nDaysAlive = 0;
-var nBrokenWIFIConnections = 0;
+var nBrokenWIFIConnections = 25;	//initialize the system to go into AP mode
 var ZIP = '22182';
 var NDELAYMINS = 5;
 var MAXDAYSAWAKE = 7;
@@ -82,6 +82,7 @@ function onInit()
 	clearInterval();
 	setTimeout(initializeLightingSystem, NMILIPERMIN/6);
 }
+
 
 function startWebserver()
 {
@@ -124,7 +125,7 @@ function checkConnection(oState)
 		if(oState.station != "connected" && oState.ap != "enabled")
 		{
 			SUNSETTIME = "Cannot connect to WIFI";
-			if(nBrokenWIFIConnections < 24)	//maybe wifi is temporarily down, so dont overreact, give one chance
+			if(nBrokenWIFIConnections < 12)	//maybe wifi is temporarily down, so dont overreact,a few chances
 			{
 				nBrokenWIFIConnections++;
 			}
@@ -152,11 +153,11 @@ function checkConnection(oState)
 			getWeather();
 			nBrokenWIFIConnections = 0;	//reset the counter, found a good connection!
 		}
-		else //sleep an hour, then try again!
+		else //sleep then try again! - might be in AP mode also, but still waiting for either type of connection
 		{
 			nBrokenWIFIConnections++;
 			console.log("Couldn't get a connection");
-			setTimeout(checkConnectionThenStart, NMILISPERHOUR);
+			setTimeout(checkConnectionThenStart, (NMILIPERMIN*5));	//wait 5 mins, then try again
 		}
 	}
 }
@@ -339,6 +340,7 @@ function getPage(req,res)
 				function(ap){ 
 					//all actions of consequence are done by the hourly loop (SNTP, etc)
 					console.log("connected to " + oUrl.query.s); 
+					nBrokenWIFIConnections = 0;
 					}
 				);
 			}
@@ -505,10 +507,16 @@ function writeValuesToFlash()
 	return uaArr;
 }
 
-function killWifi()
+function initAPWifi()
 {
+	//set the AP to be on
+	WIFI.setDHCPHostname("landscape");
+    WIFI.save();
 	WIFI.disconnect();
 	WIFI.connect("dummy", {password:"dummy"},function(x){});
+	WIFI.disconnect();
+	//set the hostname
+	WIFI.startAP("landscape");
 	WIFI.save();
 	ESP8266.reboot();
 }
