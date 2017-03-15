@@ -182,7 +182,7 @@ function fixTimeZone(nWNDHR)
 	var oDate = new Date();
 	var nCurHr = oDate.getHours();
 	//time from wunderground not matching current time, maybe TZ is wrong?!
-	if(dateIsSet() && nCurHr != nWNDHR)
+	if(nCurHr != nWNDHR)
 	{
 		var newOffset = NTZ  - nCurHr + nWNDHR +12;
 		newOffset = (newOffset % 24) - 12;
