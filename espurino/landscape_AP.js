@@ -282,12 +282,18 @@ function dateString(a_dDate)
 
 function setMode(a_sMode, a_sNext , a_nSleepDuration)
 {
-  //set global variable with the date that next action happens
-  var nSleepToDateMillis = ((new Date()).getTime()) + a_nSleepDuration;
-  // set global variable indicating what system is currently doing
-  sMode = dateString(new Date()) + ": " + a_sMode + " (Next action: " +a_sNext + " " + (dateString(new Date(nSleepToDateMillis))) + ')';
-  //log out what is going on
-  console.log(sMode); 
+	sMode = dateString(new Date()) + ": " + a_sMode;
+	if(a_sNext)
+	{
+		sMode += "Next action: " + a_sNext;
+	}
+	if(a_nSleepDuration)
+	{
+		var nSleepToDateMillis = ((new Date()).getTime()) + a_nSleepDuration;
+		sMode += "( " + (dateString(new Date(nSleepToDateMillis))) + ")";
+	}
+	//log out what is going on
+	console.log(sMode); 
 }
 
 function setPin(fSet)
