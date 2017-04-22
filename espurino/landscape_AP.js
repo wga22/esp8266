@@ -285,12 +285,12 @@ function setMode(a_sMode, a_sNext , a_nSleepDuration)
 	sMode = dateString(new Date()) + ": " + a_sMode;
 	if(a_sNext)
 	{
-		sMode += "Next action: " + a_sNext;
+		sMode += " Next action: " + a_sNext;
 	}
 	if(a_nSleepDuration)
 	{
 		var nSleepToDateMillis = ((new Date()).getTime()) + a_nSleepDuration;
-		sMode += "( " + (dateString(new Date(nSleepToDateMillis))) + ")";
+		sMode += " ( " + (dateString(new Date(nSleepToDateMillis))) + ")";
 	}
 	//log out what is going on
 	console.log(sMode); 
