@@ -120,7 +120,7 @@ function onInit()
 	try
 	{
 		FLASHLOC = ESP8266.getFreeFlash()[0].addr;
-		ESP8266.setCPUFreq(80);	//save power?
+		ESP8266.setCPUFreq(160);
 	}
 	catch(e)
 	{
@@ -224,21 +224,25 @@ function dateIsSet()
 	return (new Date()).getFullYear() > 2010;
 }
 
-function fixTime(nHour, nMinutes)
+function fixTimeZone(nWNDHR)
 {
 	var oDate = new Date();
-	var nSysHour = oDate.getHours();
-	var nSysMin = oDate.getMinutes();
-	
-	if(nSysHour != nHour || nMinutes!=nSysMin)
+	var nCurHr = oDate.getHours();
+	//time from wunderground not matching current time, maybe TZ is wrong?!
+	if(dateIsSet() && nCurHr != nWNDHR)
 	{
-		var nTimeNow = getTime();
-		nTimeNow += (nHour-nSysHour)*3600;
-		nTimeNow += (nMinutes-oDate.getMinutes())*60;
-		setTime(nTimeNow);
+		var newOffset = nWNDHR-nCurHr+NTZ;
+		if(Math.abs(newOffset)>12)
+		{
+			newOffset = newOffset + 24;
+		}
+		newOffset = (newOffset % 12);
+		console.log("nCurHr:" + nCurHr + " nWNDHR:" + nWNDHR + " newOffset: " + newOffset);
+		//console.log("TZ: " + NTZ + " changes to " + newOffset );
+		NTZ = newOffset;
+		setSNTPServer();	//needed to update timezone
 	}
 }
-
 
 
 function fixMemLeaks()
@@ -274,7 +278,7 @@ function getWeather()
 			var nMilisToSunset = ((nSSMn - nCTMn) * NMILIPERMIN) + ((nSSHr - nCTHr) * NMILISPERHOUR);
 			SUNSETTIME = nSSHr + ":" + (nSSMn > 9 ? nSSMn : ("0"+nSSMn));
 			//make sure its in middle of the hour
-			fixTime(nCTHr, nCTMn);
+			fixTimeZone(nCTHr);
 			//either not yet sunset
 			if(nMilisToSunset > 0)
 			{
@@ -466,6 +470,7 @@ function getPage(req,res)
 				getHTMLRow('Status',sMode) +
 				getHTMLRow('Days Awake',nDaysAlive) +
 				getHTMLRow('ESP:',JSON.stringify(ESP8266.getState())) +
+				getHTMLRow('Timezone offset:', NTZ) +
 				getHTMLRow('Bad Station Count',nBrokenWIFIConnections)
 			);
 		}
