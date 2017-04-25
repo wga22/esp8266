@@ -31,7 +31,54 @@ E.toString(E.toUint8Array("mcdonalds"))
 			E.toString(E.toUint8Array("mcdonalds"))
 			>flash.read(12,487424)
 			
+http://api.wunderground.com/api/13db05c35598dd93/astronomy/q/22182.json
 
+{
+  "response": {
+  "version":"0.1",
+  "termsofService":"http://www.wunderground.com/weather/api/d/terms.html",
+  "features": {
+  "astronomy": 1
+  }
+	}
+		,	"moon_phase": {
+		"percentIlluminated":"1",
+		"ageOfMoon":"28",
+		"phaseofMoon":"Waning Crescent",
+		"hemisphere":"North",
+		"current_time": {
+		"hour":"8",
+		"minute":"38"
+		},
+		"sunrise": {
+		"hour":"6",
+		"minute":"18"
+		},
+		"sunset": {
+		"hour":"19",
+		"minute":"56"
+		},
+		"moonrise": {
+		"hour":"6",
+		"minute":"01"
+		},
+		"moonset": {
+		"hour":"19",
+		"minute":"05"
+		}
+	},
+	"sun_phase": {
+		"sunrise": {
+		"hour":"6",
+		"minute":"18"
+		},
+		"sunset": {
+		"hour":"19",
+		"minute":"56"
+		}
+	}
+}
+			
 
 */
 
@@ -93,14 +140,14 @@ function startWebserver()
 function initializeLightingSystem()
 {
 	setMode("initializing System.", NMILIPERMIN/6);
+	setInterval(function(){}, NMILISPERHOUR);	//just create empty process to make sure system stays alive
 	nPageLoads = 0;
 	nDaysAlive = 0;
 	readValuesFromFlash();
-	setInterval(function(){}, NMILISPERHOUR);
 	setPin(false);	//turn off the light
 	startWebserver();
-	checkConnectionThenStart();
 	setSNTPServer();
+	setTimeout(checkConnectionThenStart,NMILIPERMIN);
 }
 
 
@@ -177,20 +224,22 @@ function dateIsSet()
 	return (new Date()).getFullYear() > 2010;
 }
 
-function fixTimeZone(nWNDHR)
+function fixTime(nHour, nMinutes)
 {
 	var oDate = new Date();
-	var nCurHr = oDate.getHours();
-	//time from wunderground not matching current time, maybe TZ is wrong?!
-	if(nCurHr != nWNDHR)
+	var nSysHour = oDate.getHours();
+	var nSysMin = oDate.getMinutes();
+	
+	if(nSysHour != nHour || nMinutes!=nSysMin)
 	{
-		var newOffset = NTZ  - nCurHr + nWNDHR +12;
-		newOffset = (newOffset % 24) - 12;
-		console.log("TZ: " + NTZ + " changes to " + newOffset );
-		NTZ = newOffset;
-		setSNTPServer();	//needed to update timezone
+		var nTimeNow = getTime();
+		nTimeNow += (nHour-nSysHour)*3600;
+		nTimeNow += (nMinutes-oDate.getMinutes())*60;
+		setTime(nTimeNow);
 	}
 }
+
+
 
 function fixMemLeaks()
 {
@@ -202,11 +251,10 @@ function fixMemLeaks()
 	}
 }
 
-
 //populate the weather variable with the sunset, etc
 function getWeather()
 {
-	//fixMemLeaks();
+	fixMemLeaks();
 	//getting weather now, so allow another process to get weather
 	setMode("getting Weather", NMILIPERMIN/10);
 	getWeather.val = "";
@@ -226,10 +274,7 @@ function getWeather()
 			var nMilisToSunset = ((nSSMn - nCTMn) * NMILIPERMIN) + ((nSSHr - nCTHr) * NMILISPERHOUR);
 			SUNSETTIME = nSSHr + ":" + (nSSMn > 9 ? nSSMn : ("0"+nSSMn));
 			//make sure its in middle of the hour
-			if(nCTMn > 3 && nCTMn < 57 )
-			{
-				fixTimeZone(nCTHr);
-			}
+			fixTime(nCTHr, nCTMn);
 			//either not yet sunset
 			if(nMilisToSunset > 0)
 			{
