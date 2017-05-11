@@ -90,7 +90,7 @@ var flash = require("Flash");
 
 //Global Constants / strings
 var PINOUT = D2;
-var STITLE = 'IOT Landscape Timer - V37 (2017-1-31)';
+var STITLE = 'IOT Landscape Timer - V38 (2017-5-12)';
 var SURLAPI = 'http://api.wunderground.com/api/13db05c35598dd93/astronomy/q/';
 var HTTP_HEAD = '<!DOCTYPE html><html lang=\"en\"><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, user-scalable=no\"/><link rel=\"icon\" type=\"image/png\" href=\"http://i.imgur.com/87R4ig5.png\">';
 var HTTP_STYLE = '<style>.rc{fontWeight:bold;text-align:right} .lc{} .c{text-align: center;} div,input{padding:5px;font-size:1em;} input{width:95%;} body{text-align: center;font-family:verdana;} button{border:0;border-radius:0.3rem;background-color:#1fa3ec;color:#fff;line-height:2.4rem;font-size:1.2rem;width:100%;} .q{float: right;width: 64px;text-align: right;} .l{background: url(\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAALVBMVEX///8EBwfBwsLw8PAzNjaCg4NTVVUjJiZDRUUUFxdiZGSho6OSk5Pg4eFydHTCjaf3AAAAZElEQVQ4je2NSw7AIAhEBamKn97/uMXEGBvozkWb9C2Zx4xzWykBhFAeYp9gkLyZE0zIMno9n4g19hmdY39scwqVkOXaxph0ZCXQcqxSpgQpONa59wkRDOL93eAXvimwlbPbwwVAegLS1HGfZAAAAABJRU5ErkJggg==\") no-repeat left center;background-size: 1em;}</style>';
@@ -130,26 +130,25 @@ function onInit()
 	setTimeout(initializeLightingSystem, NMILIPERMIN/6);
 }
 
-
-function startWebserver()
-{
-  console.log("startWebserver");
-  HTTP.createServer(getPage).listen(80);
-}
-
 function initializeLightingSystem()
 {
 	setMode("initializing System.", NMILIPERMIN/6);
-	setInterval(function(){}, NMILISPERHOUR);	//just create empty process to make sure system stays alive
+	setInterval(pingSite, NMILISPERHOUR);	//record heartbeat of system being alive each hour
 	nPageLoads = 0;
 	nDaysAlive = 0;
 	readValuesFromFlash();
 	setPin(false);	//turn off the light
 	startWebserver();
 	setSNTPServer();
-	setTimeout(checkConnectionThenStart,NMILIPERMIN);
+	checkConnectionThenStart();
+	setInterval(checkConnectionThenStart,NMILISPERHOUR*24);	//run daily
 }
 
+function startWebserver()
+{
+  console.log("startWebserver");
+  HTTP.createServer(getPage).listen(80);
+}
 
 function setSNTPServer()
 {
@@ -172,16 +171,13 @@ function checkConnection(oState)
 		if(oState.station != "connected" && oState.ap != "enabled")
 		{
 			SUNSETTIME = "Cannot connect to WIFI";
-			if(nBrokenWIFIConnections < 12)	//maybe wifi is temporarily down, so dont overreact,a few chances
-			{
-				nBrokenWIFIConnections++;
-			}
-			else
+			nBrokenWIFIConnections++;
+			if(nBrokenWIFIConnections > 12)  //maybe wifi is temporarily down, so dont overreact,a few chances
 			{
 				console.log("restarting access point!" + nBrokenWIFIConnections);
 				WIFI.startAP("landscape", null, function(){console.log("connected as AP");});
 				WIFI.save();
-				ESP8266.reboot();		//seeme to be needed to make AP be accessible correctly
+				ESP8266.reboot();		//seems to be needed to make AP be accessible correctly
 			}
 		}
 		// else if connected to a station, AND AP is enabled, turn it off, since not good to have on when connected to station
@@ -197,7 +193,15 @@ function checkConnection(oState)
 		if( oState.station === "connected")
 		{
 			console.log("Already had conn, starting.  Reset count: " + nBrokenWIFIConnections);
-			getWeather();
+			try
+			{
+				getWeather();
+			}
+			catch(e)
+			{
+				console.log("Issue with pingSite");
+				ESP8266.reboot();	//TODO: is this too much?
+			}
 			nBrokenWIFIConnections = 0;	//reset the counter, found a good connection!
 		}
 		else //sleep then try again! - might be in AP mode also, but still waiting for either type of connection
@@ -211,12 +215,21 @@ function checkConnection(oState)
 
 function pingSite()
 {
-	var sSite = 'http://cloudservices-willcode.rhcloud.com/';
-	HTTP.get(sSite, function(res) 
+	var THINGSPEAKURL = 'http://api.thingspeak.com/update';
+	var sThingspeakKey = '0NRCT2ZN3PNTMHUG';
+	var sSite = THINGSPEAKURL + "?key=" + sThingspeakKey + "&field1=" + nDaysAlive;
+	try
 	{
-		res.on('data', function(sdta) { });
-		res.on('close', function(fLoaded) {console.log("loaded site rhcloud");});
-	});
+		HTTP.get(sSite, function(res) 
+		{
+			res.on('data', function(sdta) { });
+			res.on('close', function(fLoaded) {console.log("pinged thingspeak");});
+		});
+	}
+	catch(e)
+	{
+		console.log("Issue with pingSite");
+	}
 }
 
 function dateIsSet()
@@ -290,10 +303,9 @@ function getWeather()
 				console.log("after sunset, before lights off");
 				turnOnLights();
 			}
-			setTimeout(checkConnectionThenStart, (14*NMILISPERHOUR));	//tomorrow do it all over again!
 		});
+		res.on('error', function(e){console.log("error getting wunderground details");});	//TODO: test, and handle by saving values?
 	});
-	setTimeout(pingSite, NMILIPERMIN);
 }
 getWeather.val = "";
 
@@ -348,8 +360,15 @@ function setMode(a_sMode, a_sNext , a_nSleepDuration)
 function setPin(fSet)
 {
 	fIsOn = (fSet === true);
-	_setpin(fIsOn, PINOUT);
-	_setpin(fIsOn, D13);
+	try
+	{
+		_setpin(fIsOn, PINOUT);
+		_setpin(fIsOn, D13);		
+	}
+	catch(e)
+	{
+		console.log("issue writing to pin");
+	}
 }
 
 function _setpin(fSet, sPin)
@@ -443,8 +462,8 @@ function getPage(req,res)
 		}
 		else if(req.url == "/reboot")
 		{
-			ESP8266.reboot();
 			res.end();
+			ESP8266.reboot();
 			return;
 		}
 
