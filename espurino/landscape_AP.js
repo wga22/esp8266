@@ -454,7 +454,7 @@ function getPage(req,res)
 
 		if(req.url ==  "/toggle")
 		{
-			setTimeout(toggleLights, 1000);
+			toggleLights();
 		}
 		else if(req.url == "/reset")
 		{
