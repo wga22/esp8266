@@ -133,7 +133,7 @@ function onInit()
 function initializeLightingSystem()
 {
 	setMode("initializing System.", NMILIPERMIN/6);
-	setInterval(pingSite, NMILISPERHOUR);	//record heartbeat of system being alive each hour
+	setInterval(pingSite, NMILISPERHOUR/4);	//record heartbeat of system being alive each hour
 	nPageLoads = 0;
 	nDaysAlive = 0;
 	readValuesFromFlash();
@@ -199,7 +199,7 @@ function checkConnection(oState)
 			}
 			catch(e)
 			{
-				console.log("Issue with pingSite");
+				console.log("Issue with getWeather");
 				ESP8266.reboot();	//TODO: is this too much?
 			}
 			nBrokenWIFIConnections = 0;	//reset the counter, found a good connection!
@@ -217,9 +217,9 @@ function pingSite()
 {
 	var THINGSPEAKURL = 'http://api.thingspeak.com/update';
 	var sThingspeakKey = '0NRCT2ZN3PNTMHUG';
-	var sSite = THINGSPEAKURL + "?key=" + sThingspeakKey + "&field1=" + nDaysAlive;
 	try
 	{
+		var sSite = THINGSPEAKURL + "?key=" + sThingspeakKey + "&field1=" + WIFI.getDetails().rssi;
 		HTTP.get(sSite, function(res) 
 		{
 			res.on('data', function(sdta) { });
