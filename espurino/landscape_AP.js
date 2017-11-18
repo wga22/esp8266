@@ -14,9 +14,9 @@
 //flash test
 //read the flash available
 ESP8266.getFreeFlash();
-var FLASHLOC = ESP8266.getFreeFlash()[0].addr;
-var flashPage = flash.getPage(FLASHLOC);
-flash.read(2, FLASHLOC);
+var nFlashLocation = ESP8266.getFreeFlash()[0].addr;
+var flashPage = flash.getPage(nFlashLocation);
+flash.read(2, nFlashLocation);
 var nHR =6;
 var nMinDelay = 32;
 var nZIP = 99999;
@@ -83,43 +83,43 @@ http://api.wunderground.com/api/13db05c35598dd93/astronomy/q/22182.json
 */
 
 //Global requires
-var HTTP = require("http");
-var WIFI = require("Wifi");
-var ESP8266 = require("ESP8266");
-var flash = require("Flash");
+const HTTP = require("http");
+const WIFI = require("Wifi");
+const ESP8266 = require("ESP8266");
+const flash = require("Flash");
 
 //Global Constants / strings
-var PINOUT = D2;
-var STITLE = 'IOT Landscape Timer - V39 (2017-7-19)';
-var SURLAPI = 'http://api.wunderground.com/api/13db05c35598dd93/astronomy/q/';
-var HTTP_HEAD = '<!DOCTYPE html><html lang=\"en\"><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, user-scalable=no\"/><link rel=\"icon\" type=\"image/png\" href=\"http://i.imgur.com/87R4ig5.png\">';
-var HTTP_STYLE = '<style>.rc{fontWeight:bold;text-align:right} .lc{} .c{text-align: center;} div,input{padding:5px;font-size:1em;} input{width:95%;} body{text-align: center;font-family:verdana;} button{border:0;border-radius:0.3rem;background-color:#1fa3ec;color:#fff;line-height:2.4rem;font-size:1.2rem;width:100%;} .q{float: right;width: 64px;text-align: right;} .l{background: url(\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAALVBMVEX///8EBwfBwsLw8PAzNjaCg4NTVVUjJiZDRUUUFxdiZGSho6OSk5Pg4eFydHTCjaf3AAAAZElEQVQ4je2NSw7AIAhEBamKn97/uMXEGBvozkWb9C2Zx4xzWykBhFAeYp9gkLyZE0zIMno9n4g19hmdY39scwqVkOXaxph0ZCXQcqxSpgQpONa59wkRDOL93eAXvimwlbPbwwVAegLS1HGfZAAAAABJRU5ErkJggg==\") no-repeat left center;background-size: 1em;}</style>';
-var HTTP_HEAD_END = '</head><body><div style="text-align:left;display:inline-block;min-width:260px;">';
-var HTTP_FORM_START = '<form method="get" action="save"><table>';
-var HTTP_END = '<tr><td colspan="2"><button type="submit">Save</button></form></td></tr></table></div></body></html>';
+const PINOUT = D2;
+const STITLE = 'IOT Landscape Timer - V39 (2017-7-19)';
+const SURLAPI = 'http://api.wunderground.com/api/13db05c35598dd93/astronomy/q/';
+const HTTP_HEAD = '<!DOCTYPE html><html lang=\"en\"><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, user-scalable=no\"/><link rel=\"icon\" type=\"image/png\" href=\"http://i.imgur.com/87R4ig5.png\">';
+const HTTP_STYLE = '<style>.rc{fontWeight:bold;text-align:right} .lc{} .c{text-align: center;} div,input{padding:5px;font-size:1em;} input{width:95%;} body{text-align: center;font-family:verdana;} button{border:0;border-radius:0.3rem;background-color:#1fa3ec;color:#fff;line-height:2.4rem;font-size:1.2rem;width:100%;} .q{float: right;width: 64px;text-align: right;} .l{background: url(\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAALVBMVEX///8EBwfBwsLw8PAzNjaCg4NTVVUjJiZDRUUUFxdiZGSho6OSk5Pg4eFydHTCjaf3AAAAZElEQVQ4je2NSw7AIAhEBamKn97/uMXEGBvozkWb9C2Zx4xzWykBhFAeYp9gkLyZE0zIMno9n4g19hmdY39scwqVkOXaxph0ZCXQcqxSpgQpONa59wkRDOL93eAXvimwlbPbwwVAegLS1HGfZAAAAABJRU5ErkJggg==\") no-repeat left center;background-size: 1em;}</style>';
+const HTTP_HEAD_END = '</head><body><div style="text-align:left;display:inline-block;min-width:260px;">';
+const HTTP_FORM_START = '<form method="get" action="save"><table>';
+const HTTP_END = '<tr><td colspan="2"><button type="submit">Save</button></form></td></tr></table></div></body></html>';
+const NDELAYMINS = 5;
+const MAXDAYSAWAKE = 7;
+const NMILIPERMIN = 60000;
+const NMILISPERHOUR = 60*NMILIPERMIN;
 
 var fIsOn = false;
 var nPageLoads = 0;
 var nDaysAlive = 0;
 var nBrokenWIFIConnections = 25;	//initialize the system to go into AP mode
 var ZIP = '22182';
-var NDELAYMINS = 5;
-var MAXDAYSAWAKE = 7;
 var durationForLights = 5;  //hours
 var NTZ = -4;
 var nSleepToDateMillis = 0;
 var sMode = 'nothing';
-var NMILIPERMIN = 60000;
-var NMILISPERHOUR = 60*NMILIPERMIN;
-var FLASHLOC = -1;
-var SUNSETTIME = 'UNDEF';
+var nFlashLocation = -1;
+var sSunsetTimeMsg = 'UNDEF';
 
 
 function onInit()
 {
 	try
 	{
-		FLASHLOC = ESP8266.getFreeFlash()[0].addr;
+		nFlashLocation = ESP8266.getFreeFlash()[0].addr;
 		ESP8266.setCPUFreq(160);
 	}
 	catch(e)
@@ -170,7 +170,7 @@ function checkConnection(oState)
 	{
 		if(oState.station != "connected" && oState.ap != "enabled")
 		{
-			SUNSETTIME = "Cannot connect to WIFI";
+			sSunsetTimeMsg = "Cannot connect to WIFI";
 			nBrokenWIFIConnections++;
 			if(nBrokenWIFIConnections > 12)  //maybe wifi is temporarily down, so dont overreact,a few chances
 			{
@@ -289,7 +289,7 @@ function getWeather()
 			var nCTHr = parseInt(oWeather.moon_phase.current_time.hour,10);
 			var nCTMn = parseInt(oWeather.moon_phase.current_time.minute,10);
 			var nMilisToSunset = ((nSSMn - nCTMn) * NMILIPERMIN) + ((nSSHr - nCTHr) * NMILISPERHOUR);
-			SUNSETTIME = nSSHr + ":" + (nSSMn > 9 ? nSSMn : ("0"+nSSMn));
+			sSunsetTimeMsg = nSSHr + ":" + (nSSMn > 9 ? nSSMn : ("0"+nSSMn));
 			//make sure its in middle of the hour
 			fixTimeZone(nCTHr);
 			//either not yet sunset
@@ -483,7 +483,7 @@ function getPage(req,res)
 
 		res.write(
 			getHTMLRow('System time', dateString(new Date())) + 
-			getHTMLRow('Sunset', SUNSETTIME) + 
+			getHTMLRow('Sunset', sSunsetTimeMsg) + 
 			getInputRow('Zip Code','z', ZIP) +
 			getInputRow('Light Duration (hours)','d', durationForLights) + 
 			getInputRow('Delay from Sunset (mins)','m', NDELAYMINS));
@@ -542,9 +542,9 @@ function fixMinutes(nMins)
 }
 function readValuesFromFlash()
 {
-	if(FLASHLOC > -1)
+	if(nFlashLocation > -1)
 	{
-		var u8FVals = flash.read(64, FLASHLOC);
+		var u8FVals = flash.read(64, nFlashLocation);
 		var sVals = E.toString(u8FVals);
 		if(sVals && sVals.length > 0 && sVals.indexOf("|",0)>-1)
 		{
@@ -575,16 +575,16 @@ function writeValuesToFlash()
 		sSaveString += "0";
 	}
 	var uaArr = E.toUint8Array(sSaveString);
-	if(FLASHLOC > -1)
+	if(nFlashLocation > -1)
 	{
-		flash.erasePage(FLASHLOC);
-		flash.write(uaArr, FLASHLOC);
+		flash.erasePage(nFlashLocation);
+		flash.write(uaArr, nFlashLocation);
 	}
 	else
 	{
 		try
 		{
-			FLASHLOC = ESP8266.getFreeFlash()[0].addr;
+			nFlashLocation = ESP8266.getFreeFlash()[0].addr;
 		}
 		catch(e){}
 	}
