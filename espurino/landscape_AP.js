@@ -291,7 +291,10 @@ function getWeather()
 			var nMilisToSunset = ((nSSMn - nCTMn) * NMILIPERMIN) + ((nSSHr - nCTHr) * NMILISPERHOUR);
 			sSunsetTimeMsg = nSSHr + ":" + (nSSMn > 9 ? nSSMn : ("0"+nSSMn));
 			//make sure its in middle of the hour
-			fixTimeZone(nCTHr);
+			if(nCTMn > 2 && nCTMn < 58)
+			{
+				fixTimeZone(nCTHr);	
+			}
 			//either not yet sunset
 			if(nMilisToSunset > 0)
 			{
