@@ -219,7 +219,7 @@ function pingSite()
 	var sThingspeakKey = '0NRCT2ZN3PNTMHUG';
 	try
 	{
-		var sSite = THINGSPEAKURL + "?key=" + sThingspeakKey + "&field1=" + (WIFI.getDetails().rssi)+"&field2=" + (fIsOn?"0":"1");
+		var sSite = THINGSPEAKURL + "?key=" + sThingspeakKey + "&field1=" + (WIFI.getDetails().rssi)+"&field2=" + (fIsOn?"1":"0");
 		HTTP.get(sSite, function(res) 
 		{
 			res.on('data', function(sdta) { });
