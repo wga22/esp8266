@@ -133,7 +133,7 @@ function onInit()
 function initializeLightingSystem()
 {
 	setMode("initializing System.", NMILIPERMIN/6);
-	setInterval(pingSite, NMILISPERHOUR/4);	//record heartbeat of system being alive each hour
+	//setInterval(pingSite, NMILISPERHOUR/4);	//record heartbeat of system being alive each hour
 	nPageLoads = 0;
 	nDaysAlive = 0;
 	readValuesFromFlash();
@@ -219,7 +219,7 @@ function pingSite()
 	var sThingspeakKey = '0NRCT2ZN3PNTMHUG';
 	try
 	{
-		var sSite = THINGSPEAKURL + "?key=" + sThingspeakKey + "&field1=" + WIFI.getDetails().rssi;
+		var sSite = THINGSPEAKURL + "?key=" + sThingspeakKey + "&field1=" + (WIFI.getDetails().rssi)+"&field2=" + (fIsOn?"0":"1");
 		HTTP.get(sSite, function(res) 
 		{
 			res.on('data', function(sdta) { });
@@ -377,6 +377,7 @@ function setMode(a_sMode, a_sNext , a_nSleepDuration)
 function setPin(fSet)
 {
 	fIsOn = (fSet === true);
+	pingSite();
 	try
 	{
 		_setpin(fIsOn, PINOUT);
