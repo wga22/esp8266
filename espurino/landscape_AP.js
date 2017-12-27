@@ -244,12 +244,17 @@ function fixTimeZone(nWNDHR)
 	//time from wunderground not matching current time, maybe TZ is wrong?!
 	if(dateIsSet() && nCurHr != nWNDHR)
 	{
-		var newOffset = nWNDHR-nCurHr+NTZ;
-		if(Math.abs(newOffset)>12)
+		// Local time zone offset in the range -11..13.
+		var newOffset = nWNDHR-nCurHr;
+		newOffset = newOffset + NTZ;	//adjust for what you currently think it is
+		if(newOffset>13)
+		{
+			newOffset = newOffset - 24;
+		}
+		if(newOffset<-11)
 		{
 			newOffset = newOffset + 24;
 		}
-		newOffset = (newOffset % 12);
 		console.log("nCurHr:" + nCurHr + " nWNDHR:" + nWNDHR + " newOffset: " + newOffset);
 		//console.log("TZ: " + NTZ + " changes to " + newOffset );
 		NTZ = newOffset;
