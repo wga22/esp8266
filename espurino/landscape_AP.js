@@ -213,13 +213,14 @@ function checkConnection(oState)
 	}
 }
 
-function pingSite()
+function pingSite(nVal)
 {
 	var THINGSPEAKURL = 'http://api.thingspeak.com/update';
 	var sThingspeakKey = '0NRCT2ZN3PNTMHUG';
+	nVal = nVal ? nVal : ((fIsOn?"1":"0"));
 	try
 	{
-		var sSite = THINGSPEAKURL + "?key=" + sThingspeakKey + "&field1=" + (WIFI.getDetails().rssi)+"&field2=" + (fIsOn?"1":"0");
+		var sSite = THINGSPEAKURL + "?key=" + sThingspeakKey + "&field1=" + (WIFI.getDetails().rssi)+"&field2=" + nVal;
 		HTTP.get(sSite, function(res) 
 		{
 			res.on('data', function(sdta) { });
@@ -276,7 +277,7 @@ function fixMemLeaks()
 //populate the weather variable with the sunset, etc
 function getWeather()
 {
-	fixMemLeaks();
+	//fixMemLeaks();
 	//getting weather now, so allow another process to get weather
 	setMode("getting Weather", NMILIPERMIN/10);
 	getWeather.val = "";
@@ -310,6 +311,11 @@ function getWeather()
 			{
 				console.log("after sunset, before lights off");
 				turnOnLights();
+			}
+			else //wait until tomorrow morning, and check weather then
+			{
+				pingSite(3);
+				setTimeout(getWeather, (NMILISPERHOUR*4));	//wait 4 hours, and see if positive number then
 			}
 		});
 		res.on('error', function(e){console.log("error getting wunderground details");});	//TODO: test, and handle by saving values?
@@ -377,7 +383,7 @@ function setMode(a_sMode, a_sNext , a_nSleepDuration)
 function setPin(fSet)
 {
 	fIsOn = (fSet === true);
-	pingSite();
+	pingSite(fIsOn ? 1:0);
 	try
 	{
 		_setpin(fIsOn, PINOUT);
