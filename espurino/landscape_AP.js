@@ -89,7 +89,7 @@ const ESP8266 = require("ESP8266");
 const flash = require("Flash");
 
 //Global Constants / strings
-const PINOUT = D2;
+const PINOUT = D2;	
 const STITLE = 'IOT Landscape Timer - V40 (2017-12-08)';
 const SURLAPI = 'http://api.wunderground.com/api/13db05c35598dd93/astronomy/q/';
 const HTTP_HEAD = '<!DOCTYPE html><html lang=\"en\"><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, user-scalable=no\"/><link rel=\"icon\" type=\"image/png\" href=\"http://i.imgur.com/87R4ig5.png\">';
@@ -97,11 +97,11 @@ const HTTP_STYLE = '<style>.rc{fontWeight:bold;text-align:right} .lc{} .c{text-a
 const HTTP_HEAD_END = '</head><body><div style="text-align:left;display:inline-block;min-width:260px;">';
 const HTTP_FORM_START = '<form method="get" action="save"><table>';
 const HTTP_END = '<tr><td colspan="2"><button type="submit">Save</button></form></td></tr></table></div></body></html>';
-const NDELAYMINS = 5;
 const MAXDAYSAWAKE = 7;
 const NMILIPERMIN = 60000;
 const NMILISPERHOUR = 60*NMILIPERMIN;
 
+var NDELAYMINS = 5;
 var fIsOn = false;
 var nPageLoads = 0;
 var nDaysAlive = 0;
@@ -114,13 +114,18 @@ var sMode = 'nothing';
 var nFlashLocation = -1;
 var sSunsetTimeMsg = 'UNDEF';
 
+function bootup()
+{
+	
+}
 
 function onInit()
 {
 	try
 	{
 		nFlashLocation = ESP8266.getFreeFlash()[0].addr;
-		ESP8266.setCPUFreq(160);
+		ESP8266.setCPUFreq(80);
+		bootup();
 	}
 	catch(e)
 	{
@@ -220,7 +225,7 @@ function pingSite(nVal)
 	nVal = nVal ? nVal : ((fIsOn?"1":"0"));
 	try
 	{
-		var sSite = THINGSPEAKURL + "?key=" + sThingspeakKey + "&field1=" + (WIFI.getDetails().rssi)+"&field2=" + nVal;
+		var sSite = THINGSPEAKURL + "?key=" + sThingspeakKey + "&field1=" + (WIFI.getDetails().rssi)+"&field2=" + nVal+"&status="+WIFI.getDHCPHostname();
 		HTTP.get(sSite, function(res) 
 		{
 			res.on('data', function(sdta) { });
@@ -387,6 +392,7 @@ function setPin(fSet)
 	try
 	{
 		_setpin(fIsOn, PINOUT);
+		_setpin(!fIsOn, D12);	//SONOFF
 		_setpin(fIsOn, D13);		
 	}
 	catch(e)
