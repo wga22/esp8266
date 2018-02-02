@@ -89,7 +89,7 @@ const ESP8266 = require("ESP8266");
 const flash = require("Flash");
 
 //Global Constants / strings
-const PINOUT = D2;	
+const PINOUT = D2;
 const STITLE = 'IOT Landscape Timer - V40 (2017-12-08)';
 const SURLAPI = 'http://api.wunderground.com/api/13db05c35598dd93/astronomy/q/';
 const HTTP_HEAD = '<!DOCTYPE html><html lang=\"en\"><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, user-scalable=no\"/><link rel=\"icon\" type=\"image/png\" href=\"http://i.imgur.com/87R4ig5.png\">';
@@ -100,6 +100,7 @@ const HTTP_END = '<tr><td colspan="2"><button type="submit">Save</button></form>
 const MAXDAYSAWAKE = 7;
 const NMILIPERMIN = 60000;
 const NMILISPERHOUR = 60*NMILIPERMIN;
+const NHOSTPAD = 10;
 
 var NDELAYMINS = 5;
 var fIsOn = false;
@@ -114,18 +115,12 @@ var sMode = 'nothing';
 var nFlashLocation = -1;
 var sSunsetTimeMsg = 'UNDEF';
 
-function bootup()
-{
-	
-}
-
 function onInit()
 {
 	try
 	{
 		nFlashLocation = ESP8266.getFreeFlash()[0].addr;
 		ESP8266.setCPUFreq(80);
-		bootup();
 	}
 	catch(e)
 	{
@@ -140,7 +135,6 @@ function initializeLightingSystem()
 	setMode("initializing System.", NMILIPERMIN/6);
 	//setInterval(pingSite, NMILISPERHOUR/4);	//record heartbeat of system being alive each hour
 	nPageLoads = 0;
-	nDaysAlive = 0;
 	readValuesFromFlash();
 	setPin(false);	//turn off the light
 	startWebserver();
@@ -165,6 +159,7 @@ function setSNTPServer()
 
 function checkConnectionThenStart()
 {
+	nDaysAlive++;
 	WIFI.getStatus(checkConnection);
 }
 
@@ -223,6 +218,7 @@ function pingSite(nVal)
 	var THINGSPEAKURL = 'http://api.thingspeak.com/update';
 	var sThingspeakKey = '0NRCT2ZN3PNTMHUG';
 	nVal = nVal ? nVal : ((fIsOn?"1":"0"));
+	nVal += NHOSTPAD;
 	try
 	{
 		var sSite = THINGSPEAKURL + "?key=" + sThingspeakKey + "&field1=" + (WIFI.getDetails().rssi)+"&field2=" + nVal+"&status="+WIFI.getDHCPHostname();
@@ -268,21 +264,9 @@ function fixTimeZone(nWNDHR)
 	}
 }
 
-
-function fixMemLeaks()
-{
-	//need to handle memory leaks
-	nDaysAlive++;
-	if(nDaysAlive >= MAXDAYSAWAKE)
-	{
-		ESP8266.reboot();
-	}
-}
-
 //populate the weather variable with the sunset, etc
 function getWeather()
 {
-	//fixMemLeaks();
 	//getting weather now, so allow another process to get weather
 	setMode("getting Weather", NMILIPERMIN/10);
 	getWeather.val = "";
