@@ -90,17 +90,16 @@ const flash = require("Flash");
 
 //Global Constants / strings
 const PINOUT = D2;
-const STITLE = 'IOT Landscape Timer - V40 (2017-12-08)';
+const STITLE = 'IOT Landscape Timer - V41 (2018-03-18)';
 const SURLAPI = 'http://api.wunderground.com/api/13db05c35598dd93/astronomy/q/';
 const HTTP_HEAD = '<!DOCTYPE html><html lang=\"en\"><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, user-scalable=no\"/><link rel=\"icon\" type=\"image/png\" href=\"http://i.imgur.com/87R4ig5.png\">';
 const HTTP_STYLE = '<style>.rc{fontWeight:bold;text-align:right} .lc{} .c{text-align: center;} div,input{padding:5px;font-size:1em;} input{width:95%;} body{text-align: center;font-family:verdana;} button{border:0;border-radius:0.3rem;background-color:#1fa3ec;color:#fff;line-height:2.4rem;font-size:1.2rem;width:100%;} .q{float: right;width: 64px;text-align: right;} .l{background: url(\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAALVBMVEX///8EBwfBwsLw8PAzNjaCg4NTVVUjJiZDRUUUFxdiZGSho6OSk5Pg4eFydHTCjaf3AAAAZElEQVQ4je2NSw7AIAhEBamKn97/uMXEGBvozkWb9C2Zx4xzWykBhFAeYp9gkLyZE0zIMno9n4g19hmdY39scwqVkOXaxph0ZCXQcqxSpgQpONa59wkRDOL93eAXvimwlbPbwwVAegLS1HGfZAAAAABJRU5ErkJggg==\") no-repeat left center;background-size: 1em;}</style>';
 const HTTP_HEAD_END = '</head><body><div style="text-align:left;display:inline-block;min-width:260px;">';
 const HTTP_FORM_START = '<form method="get" action="save"><table>';
 const HTTP_END = '<tr><td colspan="2"><button type="submit">Save</button></form></td></tr></table></div></body></html>';
-const MAXDAYSAWAKE = 7;
 const NMILIPERMIN = 60000;
 const NMILISPERHOUR = 60*NMILIPERMIN;
-const NHOSTPAD = 10;
+const NHOSTPAD = 20;
 
 var NDELAYMINS = 5;
 var fIsOn = false;
@@ -139,6 +138,7 @@ function initializeLightingSystem()
 	setPin(false);	//turn off the light
 	startWebserver();
 	setSNTPServer();
+	//SONOFF - need to add code to restore WIFI settings here
 	checkConnectionThenStart();
 	setInterval(checkConnectionThenStart,NMILISPERHOUR*24);	//run daily
 }
@@ -329,8 +329,8 @@ function turnOnLights()
 	setPin(true);
 	var nMilisForLights = durationForLights*NMILISPERHOUR;
 	setMode("after sunset, running lights", "Turn off Lights", nMilisForLights);
-	//setTimeout(turnOffLights, (nMilisForLights));  
-	setTimeout(rebootIt, (nMilisForLights));  
+	setTimeout(turnOffLights, (nMilisForLights));  
+	//setTimeout(rebootIt, (nMilisForLights));  
 }
 
 //turn off lights, and reboot
