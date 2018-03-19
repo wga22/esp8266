@@ -9,29 +9,8 @@
 	Modified:
 	REQUIRED:  
 */
-
 /*
-//flash test
-//read the flash available
-ESP8266.getFreeFlash();
-var nFlashLocation = ESP8266.getFreeFlash()[0].addr;
-var flashPage = flash.getPage(nFlashLocation);
-flash.read(2, nFlashLocation);
-var nHR =6;
-var nMinDelay = 32;
-var nZIP = 99999;
-var u8Arr = E.toUint8Array(((nZIP & 0xff0000)>>16), ((nZIP & 0x00ff00)>>8), (nZIP & 0x0000ff), nHR, nMinDelay);  
-
-//write zip
-E.toUint8Array("mcdonalds");
-
-E.toString(E.toUint8Array("mcdonalds"))
-		store zip and other values in flash
-		
-			E.toString(E.toUint8Array("mcdonalds"))
-			>flash.read(12,487424)
-			
-http://api.wunderground.com/api/13db05c35598dd93/astronomy/q/22182.json
+http://api.wunderground.com/api/XXXXX/astronomy/q/22182.json
 
 {
   "response": {
@@ -90,7 +69,7 @@ const flash = require("Flash");
 
 //Global Constants / strings
 const PINOUT = D2;
-const STITLE = 'IOT Landscape Timer - V41 (2018-03-18)';
+const STITLE = 'IOT Landscape Timer - V42 (2018-03-18)';
 const SURLAPI = 'http://api.wunderground.com/api/13db05c35598dd93/astronomy/q/';
 const HTTP_HEAD = '<!DOCTYPE html><html lang=\"en\"><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, user-scalable=no\"/><link rel=\"icon\" type=\"image/png\" href=\"http://i.imgur.com/87R4ig5.png\">';
 const HTTP_STYLE = '<style>.rc{fontWeight:bold;text-align:right} .lc{} .c{text-align: center;} div,input{padding:5px;font-size:1em;} input{width:95%;} body{text-align: center;font-family:verdana;} button{border:0;border-radius:0.3rem;background-color:#1fa3ec;color:#fff;line-height:2.4rem;font-size:1.2rem;width:100%;} .q{float: right;width: 64px;text-align: right;} .l{background: url(\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAALVBMVEX///8EBwfBwsLw8PAzNjaCg4NTVVUjJiZDRUUUFxdiZGSho6OSk5Pg4eFydHTCjaf3AAAAZElEQVQ4je2NSw7AIAhEBamKn97/uMXEGBvozkWb9C2Zx4xzWykBhFAeYp9gkLyZE0zIMno9n4g19hmdY39scwqVkOXaxph0ZCXQcqxSpgQpONa59wkRDOL93eAXvimwlbPbwwVAegLS1HGfZAAAAABJRU5ErkJggg==\") no-repeat left center;background-size: 1em;}</style>';
@@ -132,7 +111,6 @@ function onInit()
 function initializeLightingSystem()
 {
 	setMode("initializing System.", NMILIPERMIN/6);
-	//setInterval(pingSite, NMILISPERHOUR/4);	//record heartbeat of system being alive each hour
 	nPageLoads = 0;
 	readValuesFromFlash();
 	setPin(false);	//turn off the light
@@ -213,27 +191,6 @@ function checkConnection(oState)
 	}
 }
 
-function pingSite(nVal)
-{
-	var THINGSPEAKURL = 'http://api.thingspeak.com/update';
-	var sThingspeakKey = '0NRCT2ZN3PNTMHUG';
-	nVal = nVal ? nVal : ((fIsOn?"1":"0"));
-	nVal += NHOSTPAD;
-	try
-	{
-		var sSite = THINGSPEAKURL + "?key=" + sThingspeakKey + "&field1=" + (WIFI.getDetails().rssi)+"&field2=" + nVal+"&status="+WIFI.getDHCPHostname();
-		HTTP.get(sSite, function(res) 
-		{
-			res.on('data', function(sdta) { });
-			res.on('close', function(fLoaded) {console.log("pinged thingspeak");});
-		});
-	}
-	catch(e)
-	{
-		console.log("Issue with pingSite");
-	}
-}
-
 function dateIsSet()
 {
 	return (new Date()).getFullYear() > 2010;
@@ -303,7 +260,6 @@ function getWeather()
 			}
 			else //wait until tomorrow morning, and check weather then
 			{
-				pingSite(3);
 				setTimeout(getWeather, (NMILISPERHOUR*4));	//wait 4 hours, and see if positive number then
 			}
 		});
@@ -340,7 +296,6 @@ function rebootIt(sMessage)
 	ESP8266.reboot();
 }
 
-
 function turnOffLights(sMessage)
 {
 	setPin(false);
@@ -372,7 +327,6 @@ function setMode(a_sMode, a_sNext , a_nSleepDuration)
 function setPin(fSet)
 {
 	fIsOn = (fSet === true);
-	pingSite(fIsOn ? 1:0);
 	try
 	{
 		_setpin(fIsOn, PINOUT);
