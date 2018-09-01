@@ -37,12 +37,14 @@ function initGraphics()
 function onInit()
 {
   // I2C
-  loadModule("SSD1306", main);
+  setTimeout(main, 10000);
+  //cannot run this without delay loadModule("SSD1306", main);
 }
 
 function main()
 {
   console.log("main");
+  loadTime();
   var I2C1 = new I2C();
   I2C1.setup({scl:D22,sda:D21});
   graphics = require("SSD1306").connect(I2C1, initGraphics, { height : 64 });
@@ -70,4 +72,27 @@ function dateString(a_dDate)
 	var aMonths = ['Jan','Feb','Mar','Apr','May','June','July','Aug','Sep','Oct','Nov','Dec'];
 	return aMonths[a_dDate.getMonth()] + " " + (a_dDate.getDate()) + " " + (a_dDate.getHours()) + ":" + (fixMinutes(a_dDate.getMinutes()));
 }
+
+//populate the weather variable with the sunset, etc
+function loadTime()
+{
+	const timeurl = "http://worldclockapi.com/api/json/est/now";
+	loadTime.val = "";
+	HTTP.get((timeurl), function(res) 
+	{
+		res.on('data', function(wunderString) {   loadTime.val += wunderString;   });
+		res.on('close', function(fLoaded) 
+		{
+			console.log("Connection to wunder closed");
+			var oWeather = JSON.parse( loadTime.val );
+			loadTime.val = "";
+			var sTimeStr = oWeather.currentDateTime;
+			console.log(sTimeStr);
+			setTime((new Date(sTimeStr).getTime()/1000));
+		});
+		res.on('error', function(e){console.log("error getting wunderground details");});	//TODO: test, and handle by saving values?
+	});
+}
+loadTime.val = "";
+
 onInit();
