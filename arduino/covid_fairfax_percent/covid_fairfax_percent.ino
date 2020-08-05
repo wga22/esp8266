@@ -53,7 +53,15 @@ void setup()
 {
   Serial.begin(115200);
   delay(SECOND);
+  //setup M5
+  Serial.println("Doing M5 setup");
+  M5.begin();
+  M5.Lcd.setTextColor(TFT_WHITE, TFT_BLACK);  // Adding a background colour erases previous text automatically
+  M5.Lcd.setTextSize(2);
+  M5.Lcd.setRotation(3);
+  M5.Lcd.fillScreen(TFT_BLACK);
 
+  Serial.println("WIFI setup");
   setupWIFI();
 
   Serial.println();
@@ -69,24 +77,11 @@ void setup()
   Serial.println("WiFi connected");
   Serial.println("IP address: ");
   Serial.println(WiFi.localIP());
+  M5.Lcd.drawRightString(IpAddress2String(WiFi.localIP()), 1, rowY(2), 1);
+  delay(SECOND);
 
   //setup date
   setupDateTime();
-  
-  //setup M5
-  delay(SECOND);
-  Serial.println("Doing M5 setup");
-  M5.begin();
-  M5.Lcd.setTextColor(TFT_WHITE, TFT_BLACK);  // Adding a background colour erases previous text automatically
-  M5.Lcd.setTextSize(2);
-  M5.Lcd.setRotation(3);
-
-//share ip address 
-  Serial.println("Writing IP address to screen");
-  M5.Lcd.fillScreen(TFT_BLACK);
-  //M5.Lcd.setCursor(1,1);
-  M5.Lcd.drawRightString(IpAddress2String(WiFi.localIP()), 1, rowY(1), 1);
-  delay(SECOND);
 }
 
 void loop() 
@@ -143,21 +138,33 @@ void setupWIFI()
     ssid = WIFI1_S;
     password = WIFI1_P;
     WiFiMulti.addAP(ssid, password);
+    Serial.println(ssid);
+    M5.Lcd.drawRightString(ssid, 1, rowY(1), 1);
+    delay(SECOND*2);
   #endif
   #ifdef WIFI2_S
     ssid = WIFI2_S;
     password = WIFI2_P;
     WiFiMulti.addAP(ssid, password);
+    Serial.println(ssid);
+    M5.Lcd.drawRightString(ssid, 1, rowY(1), 1);
+    delay(SECOND*2);
   #endif
   #ifdef WIFI3_S
     ssid = WIFI3_S;
     password = WIFI3_P;
     WiFiMulti.addAP(ssid, password);
+    Serial.println(ssid);
+    M5.Lcd.drawRightString(ssid, 1, rowY(1), 1);
+    delay(SECOND*2);
   #endif
   #ifdef WIFI4_S
     ssid = WIFI4_S;
     password = WIFI4_P;
+    Serial.println(ssid);
     WiFiMulti.addAP(ssid, password);
+    M5.Lcd.drawRightString(ssid, 1, rowY(1), 1);
+    delay(SECOND*2);
   #endif
 }
 
