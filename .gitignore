@@ -47,3 +47,8 @@ espurino/landscape.html
 espurino/wifimanager.c
 espurino/debugit.js
 espurino/sonoffcode.js
+espurino/mstickc/ESP32_66tolls_work.js
+espurino/mstickc/msticktest2.js
+espurino/mstickc/msticktests.js
+espurino/temperatureLogger.js
+espurino/tolls_notes.txt
