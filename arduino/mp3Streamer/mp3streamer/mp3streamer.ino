@@ -3,6 +3,7 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <wificredentials.h>
+#include <WiFiMulti.h>
 
 //Digital I/O used  //Makerfabs Audio V2.0
 #define I2S_DOUT 22
@@ -28,6 +29,7 @@ const int Pin_pause = 33;
 const int Pin_next = 2;
 
 Audio audio;
+WiFiMulti WiFiMulti;
 
 #ifdef WIFI5_S
 const char* ssid = WIFI5_S;
@@ -87,6 +89,9 @@ void setup()
     logoshow();
 
     //connect to WiFi
+    setupWIFI();
+    /*
+   can remove once multiwifi tested
     Serial.printf("Connecting to %s ", ssid);
     WiFi.begin(ssid, password);
     while (WiFi.status() != WL_CONNECTED)
@@ -96,6 +101,7 @@ void setup()
     }
     Serial.println(" CONNECTED");
     lcd_text("Wifi CONNECT");
+     */
 
     //Audio(I2S)
     audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
@@ -121,78 +127,23 @@ void loop()
     //Button logic
 
 
-    if (millis() - button_time > 300)
+    if (digitalRead(Pin_next) == 0 && millis() - button_time > 300)
     {
-          //button_time = millis();
-          Serial.print("PRESSED: " );
-          Serial.println(button_time);
-
-        if (digitalRead(Pin_next) == 0)
-        {
-            Serial.println("Pin_next");
-            if (station_index < station_count - 1)
-            {
-                station_index++;
-            }
-            else
-            {
-                station_index = 0;
-            }
-            button_time = millis();
-            open_new_radio(stations[station_index]);
-        }
-    /*         
-      
-
-        if (digitalRead(Pin_previous) == 0)
-        {
-            Serial.println("Pin_previous");
-            if (station_index > 0)
-            {
-                station_index--;
-            }
-            else
-            {
-                station_index = station_count - 1;
-            }
-            open_new_radio(stations[station_index]);
-        }
-        if (digitalRead(Pin_vol_up) == 0)
-        {
-            Serial.println("Pin_vol_up");
-            if (volume < 21)
-                volume++;
-            audio.setVolume(volume);
-        }
-        if (digitalRead(Pin_vol_down) == 0)
-        {
-            Serial.println("Pin_vol_down");
-            if (volume > 0)
-                volume--;
-            audio.setVolume(volume);
-        }
-        if (digitalRead(Pin_mute) == 0)
-        {
-            Serial.println("Pin_mute");
-            if (volume != 0)
-            {
-                mute_volume = volume;
-                volume = 0;
-            }
-            else
-            {
-                volume = mute_volume;
-            }
-            audio.setVolume(volume);
-        }
-        if (digitalRead(Pin_pause) == 0)
-        {
-            Serial.println("Pin_pause");
-            audio.pauseResume();
-        }
-  */
-
-  }
+      //button_time = millis();
+      Serial.print("PRESSED: " );
+      Serial.println(button_time);
+      Serial.println("Pin_next");
+      if (station_index < station_count - 1)
+      {
+          station_index++;
+      }
+      else
+      {
+          station_index = 0;
+      }
+      button_time = millis();
+      open_new_radio(stations[station_index]);
+     }
   /*
     //Serial logic
     if (Serial.available())
@@ -210,6 +161,48 @@ void loop()
         }
     }
     */
+}
+
+void setupWIFI()
+{
+  char* ssid = "";
+  char* password = "";
+  #ifdef WIFI1_S
+    ssid = WIFI1_S;
+    password = WIFI1_P;
+    WiFiMulti.addAP(ssid, password);
+    Serial.println(ssid);
+  #endif
+  #ifdef WIFI2_S
+    ssid = WIFI2_S;
+    password = WIFI2_P;
+    WiFiMulti.addAP(ssid, password);
+    Serial.println(ssid);
+  #endif
+  #ifdef WIFI3_S
+    ssid = WIFI3_S;
+    password = WIFI3_P;
+    WiFiMulti.addAP(ssid, password);
+    Serial.println(ssid);
+  #endif
+  #ifdef WIFI4_S
+    ssid = WIFI4_S;
+    password = WIFI4_P;
+    Serial.println(ssid);
+    WiFiMulti.addAP(ssid, password);
+  #endif
+    #ifdef WIFI5_S
+    ssid = WIFI5_S;
+    password = WIFI5_P;
+    Serial.println(ssid);
+    WiFiMulti.addAP(ssid, password);
+  #endif
+  while(WiFiMulti.run() != WL_CONNECTED) 
+  {
+      Serial.print(".");
+      delay(1000);
+  }
+  Serial.println("connected");
 }
 
 void print_song_time()

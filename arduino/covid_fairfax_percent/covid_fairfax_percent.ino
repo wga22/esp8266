@@ -166,6 +166,14 @@ void setupWIFI()
     M5.Lcd.drawRightString(ssid, 1, rowY(1), 1);
     delay(SECOND*2);
   #endif
+    #ifdef WIFI5_S
+    ssid = WIFI5_S;
+    password = WIFI5_P;
+    Serial.println(ssid);
+    WiFiMulti.addAP(ssid, password);
+    M5.Lcd.drawRightString(ssid, 1, rowY(1), 1);
+    delay(SECOND*2);
+  #endif
 }
 
 float percChange(int A, int B, int C)
