@@ -55,10 +55,16 @@ int length = 0;
 String stations[] = {
     "https://n0ba-e2.revma.ihrhls.com/zc8143",  //breeze
     "https://n0ba-e2.revma.ihrhls.com/zc3949", //pride 
-   // "listen.rusongs.ru/ru-mp3-128",
     "https://n1da-e2.revma.ihrhls.com/zc4422",  //hits
     "https://n0ba-e2.revma.ihrhls.com/zc8478",  //classic rock
-    "https://n32a-e2.revma.ihrhls.com/zc6788" //regae
+    "https://n32a-e2.revma.ihrhls.com/zc6788" //Reggae
+};
+String station_names[] = {
+      "The Breeze",
+    "Pride Radio",
+    "The Hits",  //hits
+    "Classic Rock",  //
+    "Reggae" //reggae
 };
 int station_index = 0;
 int station_count = sizeof(stations) / sizeof(stations[0]);
@@ -108,6 +114,7 @@ void setup()
     audio.setVolume(21); // 0...21
 
     open_new_radio(stations[station_index]);
+    lcd_text(station_names[station_index]);
 }
 
 uint run_time = 0;
@@ -119,13 +126,14 @@ void loop()
     print_song_time();
     
     //Display logic
-    if (millis() - run_time > 3000)
+    /*
+    if (millis() - run_time > 30000)
     {
         run_time = millis();
         display_music();
     }
     //Button logic
-
+*/
 
     if (digitalRead(Pin_next) == 0 && millis() - button_time > 300)
     {
@@ -143,6 +151,9 @@ void loop()
       }
       button_time = millis();
       open_new_radio(stations[station_index]);
+      lcd_text(station_names[station_index]);
+      //test if works
+      //display_music();
      }
   /*
     //Serial logic
@@ -219,6 +230,7 @@ void open_new_radio(String station)
     Serial.println("**********start a new radio************");
 }
 
+//TODO: change to display channel name
 void display_music()
 {
     int line_step = 24;
@@ -250,9 +262,9 @@ void logoshow(void)
     display.setTextSize(2);              // Normal 1:1 pixel scale
     display.setTextColor(SSD1306_WHITE); // Draw white text
     display.setCursor(0, 0);             // Start at top-left corner
-    display.println(F("MakePython"));
+    display.println(F("Will Radio"));
     display.setCursor(0, 20); // Start at top-left corner
-    display.println(F("WEB RADIO"));
+    display.println(F("Button for Next"));
     display.setCursor(0, 40); // Start at top-left corner
     display.println(F(""));
     display.display();
@@ -273,7 +285,7 @@ void lcd_text(String text)
 
 //**********************************************
 // optional
-void audio_info(const char *info)
+void xx_audio_info(const char *info)//removing, since causes blip
 {
     Serial.print("info        ");
     Serial.println(info);
