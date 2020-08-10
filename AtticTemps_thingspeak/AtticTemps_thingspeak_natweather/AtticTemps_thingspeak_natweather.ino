@@ -4,6 +4,7 @@
 // www.arduinesp.com 
 #include <DHT.h>
 #include <ESP8266WiFi.h>
+#include <ESP8266WiFiMulti.h>
 #include <WiFiClientSecure.h>
 #include <wificredentials.h>
 #define DHTPIN 2 // what pin we're connected to
@@ -13,18 +14,14 @@
 String apiKey = "NK6HEWTA7BC9ANLD";
 String wundergroundKey = "13db05c35598dd93";
 //make sure you at least have a WIFI1 in your credentials file
-#ifdef WIFI1_S
-const char* ssid = WIFI1_S;
-const char* password =WIFI1_P;
-#endif
+
 const int buffer=300;
 const char* server = "api.thingspeak.com";
 const char fingerprint[] PROGMEM = "fingerprint";
 const int httpsPort = 443;
 
 WiFiClientSecure sslClient;
-
-
+ESP8266WiFiMulti WiFiMulti;
 
 bool resetWifiEachTime = true;
 bool fTesting =false;     //turns off need for DHT11
@@ -40,11 +37,13 @@ void setup()
   //sslClient.setFingerprint(fingerprint);
   sslClient.setInsecure();
 	dht.begin();
+  setupWIFI();
 }
 
 void loop() 
 {
-  startWifi();   
+  startWIFI();
+  
   //get temp data
   float h = dht.readHumidity();
   float t = dht.readTemperature(true);
@@ -55,7 +54,7 @@ void loop()
 
   //get local weather data
   Serial.println("get internet temp");
-  String viennaTemp = getInternetTemp();
+  float viennaTemp = getInternetTemp();
 
   //write out the data
   Serial.println("writeThingSpeak");
@@ -68,34 +67,62 @@ void loop()
 }
 
 
-void startWifi()
+void setupWIFI()
 {
-	delay(1000);
-	Serial.println();
-	Serial.println();
-	Serial.print("Connecting to ");
-	Serial.println(ssid);
-
-	WiFi.begin(ssid, password);
-
-	while (WiFi.status() != WL_CONNECTED) 
-	{
-		delay(500);
-		Serial.print(".");
-	}
-	Serial.println("");
-	Serial.println("WiFi connected");
+  char* ssid = "";
+  char* password = "";
+  WiFi.mode(WIFI_STA);
+  #ifdef WIFI1_S
+    ssid = WIFI1_S;
+    password = WIFI1_P;
+    WiFiMulti.addAP(ssid, password);
+    Serial.println(ssid);
+  #endif
+  #ifdef WIFI2_S
+    ssid = WIFI2_S;
+    password = WIFI2_P;
+    WiFiMulti.addAP(ssid, password);
+    Serial.println(ssid);
+  #endif
+  #ifdef WIFI3_S
+    ssid = WIFI3_S;
+    password = WIFI3_P;
+    WiFiMulti.addAP(ssid, password);
+    Serial.println(ssid);
+  #endif
+  #ifdef WIFI4_S
+    ssid = WIFI4_S;
+    password = WIFI4_P;
+    Serial.println(ssid);
+    WiFiMulti.addAP(ssid, password);
+  #endif
+    #ifdef WIFI5_S
+    ssid = WIFI5_S;
+    password = WIFI5_P;
+    Serial.println(ssid);
+    WiFiMulti.addAP(ssid, password);
+  #endif
 }
 
-String getInternetTemp()
+void startWIFI()
+{
+  while(WiFiMulti.run() != WL_CONNECTED) 
+  {
+      Serial.print(".");
+      delay(1000);
+  }
+  Serial.println("connected");
+}
+
+float getInternetTemp()
 {  
-  String out = "-1";
+  float out = -1;
   String willcloud = "willcloud.crabdance.com";
   //http://willcloud.crabdance.com/temp.php
   //https://www.theamplituhedron.com/articles/How-to-connect-to-an-SSL-protected-server-with-ESP8266(WiFiClient)/
   Serial.println("WiFiClientSecure");
   Serial.println("setFingerprint");
-  
+  String stream="";
   if (sslClient.connect(willcloud, httpsPort)) 
   {
     Serial.println("connected to willcloud");
@@ -115,7 +142,6 @@ String getInternetTemp()
       Serial.println("there was an issue pulling from the stream");
       return out;
     }
-    out="";
     int x = 2000;  //limit tries
     for(; !sslClient.find("temp:") && x>0; x--){} // find the part we are interested in.
     for(pp=0; (sslClient.available()  && (pp < 1000)); pp++) 
@@ -126,24 +152,22 @@ String getInternetTemp()
        Serial.println("end of string found");
         break;
       }
-      out+=c;
+      stream+=c;
     }
     Serial.print("finished reading: ");
-    Serial.println(out);
+    Serial.println(stream);
     sslClient.stop();
   }
    else
   {
     Serial.print("didnt connect to ");
     Serial.println(willcloud);
-    
   }
-
-  return out;
+  return stream.toFloat();
 }
 
 
-void writeThingSpeak(float temp, float humid, String vTemp )
+void writeThingSpeak(float temp, float humid, float vTemp )
 {
    if (!fTesting && sslClient.connect(server,httpsPort)) 
   {  //   "184.106.153.149" or api.thingspeak.com
@@ -152,11 +176,11 @@ void writeThingSpeak(float temp, float humid, String vTemp )
            postStr += String(temp);
            postStr +="&field2=";
            postStr += String(humid);
-    if(vTemp!="-1")
+    if(vTemp!=-1)
     {
       Serial.println("vienna temp there.");
       postStr += "&field3=";
-      postStr += vTemp;
+      postStr += String(vTemp);
     }
     postStr += "\r\n\r\n";
  
