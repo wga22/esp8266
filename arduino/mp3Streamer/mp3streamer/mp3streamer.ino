@@ -31,11 +31,6 @@ const int Pin_next = 2;
 Audio audio;
 WiFiMulti WiFiMulti;
 
-#ifdef WIFI5_S
-const char* ssid = WIFI5_S;
-const char* password =WIFI5_P;
-#endif
-
 struct Music_info
 {
     String name;
