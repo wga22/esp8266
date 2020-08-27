@@ -51,14 +51,24 @@ String stations[] = {
     "https://n0ba-e2.revma.ihrhls.com/zc8143",  //breeze
     "https://n0ba-e2.revma.ihrhls.com/zc3949", //pride 
     "https://n1da-e2.revma.ihrhls.com/zc4422",  //hits
-    "https://n0ba-e2.revma.ihrhls.com/zc8478",  //classic rock
+    "https://n0ba-e2.revma.ihrhls.com/zc4409",  //80s to today
+    "https://n0ba-e2.revma.ihrhls.com/zc8478",  //2010
+    "https://n0ba-e2.revma.ihrhls.com/zc6850",  //2000s
+    "https://n0ba-e2.revma.ihrhls.com/zc6834",  //90s
+    "https://n0ba-e2.revma.ihrhls.com/zc5060",  //80s
+    "https://n0ba-e2.revma.ihrhls.com/zc7078",  //classic rock
     "https://n32a-e2.revma.ihrhls.com/zc6788" //Reggae
 };
 String station_names[] = {
-      "The Breeze",
+    "The Breeze",
     "Pride Radio",
     "The Hits",  //hits
-    "Classic Rock",  //
+    "80's to today",
+    "2010's",
+    "2000's",
+    "90's",
+    "80's",
+    "Classic Rock",
     "Reggae" //reggae
 };
 int station_index = 0;
@@ -118,18 +128,7 @@ uint button_time = 0;
 void loop()
 {
     audio.loop();
-    print_song_time();
-    
-    //Display logic
-    /*
-    if (millis() - run_time > 30000)
-    {
-        run_time = millis();
-        display_music();
-    }
-    //Button logic
-*/
-
+    //print_song_time();
     if (digitalRead(Pin_next) == 0 && millis() - button_time > 300)
     {
       //button_time = millis();
@@ -147,26 +146,7 @@ void loop()
       button_time = millis();
       open_new_radio(stations[station_index]);
       lcd_text(station_names[station_index]);
-      //test if works
-      //display_music();
      }
-  /*
-    //Serial logic
-    if (Serial.available())
-    {
-        String r = Serial.readString();
-        r.trim();
-        if (r.length() > 5)
-        {
-            audio.stopSong();
-            open_new_radio(r);
-        }
-        else
-        {
-            audio.setVolume(r.toInt());
-        }
-    }
-    */
 }
 
 void setupWIFI()
@@ -285,53 +265,53 @@ void xx_audio_info(const char *info)//removing, since causes blip
     Serial.print("info        ");
     Serial.println(info);
 }
-void audio_id3data(const char *info)
+void xx_audio_id3data(const char *info)
 { //id3 metadata
     Serial.print("id3data     ");
     Serial.println(info);
 }
 
-void audio_eof_mp3(const char *info)
+void xx_audio_eof_mp3(const char *info)
 { //end of file
     Serial.print("eof_mp3     ");
     Serial.println(info);
 }
-void audio_showstation(const char *info)
+void xx_audio_showstation(const char *info)
 {
     Serial.print("station     ");
     Serial.println(info);
 }
-void audio_showstreaminfo(const char *info)
+void xx_audio_showstreaminfo(const char *info)
 {
     Serial.print("streaminfo  ");
     Serial.println(info);
 }
-void audio_showstreamtitle(const char *info)
+void xx_audio_showstreamtitle(const char *info)
 {
     Serial.print("streamtitle ");
     Serial.println(info);
 }
-void audio_bitrate(const char *info)
+void xx_audio_bitrate(const char *info)
 {
     Serial.print("bitrate     ");
     Serial.println(info);
 }
-void audio_commercial(const char *info)
+void xx_audio_commercial(const char *info)
 { //duration in sec
     Serial.print("commercial  ");
     Serial.println(info);
 }
-void audio_icyurl(const char *info)
+void xx_audio_icyurl(const char *info)
 { //homepage
     Serial.print("icyurl      ");
     Serial.println(info);
 }
-void audio_lasthost(const char *info)
+void xx_audio_lasthost(const char *info)
 { //stream URL played
     Serial.print("lasthost    ");
     Serial.println(info);
 }
-void audio_eof_speech(const char *info)
+void xx_audio_eof_speech(const char *info)
 {
     Serial.print("eof_speech  ");
     Serial.println(info);
