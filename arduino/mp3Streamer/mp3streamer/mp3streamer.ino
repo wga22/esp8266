@@ -5,6 +5,7 @@
 #include <wificredentials.h>
 #include <WiFiMulti.h>
 
+/*
 //Digital I/O used  //Makerfabs Audio V2.0
 #define I2S_DOUT 22
 #define I2S_BCLK 23
@@ -16,17 +17,34 @@
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 64 // OLED display height, in pixels
 #define OLED_RESET -1    // Reset pin # (or -1 if sharing Arduino reset pin)
+*/
+//Digital I/O used  //Makerfabs Audio V2.0
+#define I2S_LRC 0
+#define I2S_DOUT 15
+#define I2S_BCLK 2
+
+//SSD1306
+#define MAKEPYTHON_ESP32_SDA 21
+#define MAKEPYTHON_ESP32_SCL 19
+#define SCREEN_WIDTH 128 // OLED display width, in pixels
+#define SCREEN_HEIGHT 64 // OLED display height, in pixels
+#define OLED_RESET -1    // Reset pin # (or -1 if sharing Arduino reset pin)
+
+
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 //Button
-const int Pin_vol_up = 39;
-const int Pin_vol_down = 36;
-const int Pin_mute = 35;
 
-const int Pin_previous = 15;
-const int Pin_pause = 33;
-const int Pin_next = 2;
+//const int Pin_vol_up = 39;
+//const int Pin_vol_down = 36;
+//const int Pin_mute = 35;
+
+//const int Pin_previous = 15;
+//const int Pin_pause = 33;
+//ALLEN const int Pin_next = 2;
+const String ihrls = "https://stream.revma.ihrhls.com/";
+const int Pin_next = 23;
 
 Audio audio;
 WiFiMulti WiFiMulti;
@@ -47,30 +65,19 @@ int mute_volume = 0;
 int runtime = 0;
 int length = 0;
 
-String stations[] = {
-    "https://n0ba-e2.revma.ihrhls.com/zc8143",  //breeze
-    "https://n0ba-e2.revma.ihrhls.com/zc3949", //pride 
-    "https://n1da-e2.revma.ihrhls.com/zc4422",  //hits
-    "https://n0ba-e2.revma.ihrhls.com/zc4409",  //80s to today
-    "https://n0ba-e2.revma.ihrhls.com/zc8478",  //2010
-    "https://n0ba-e2.revma.ihrhls.com/zc6850",  //2000s
-    "https://n0ba-e2.revma.ihrhls.com/zc6834",  //90s
-    "https://n0ba-e2.revma.ihrhls.com/zc5060",  //80s
-    "https://n0ba-e2.revma.ihrhls.com/zc7078",  //classic rock
-    "https://n32a-e2.revma.ihrhls.com/zc6788" //Reggae
+String stations[][2] = {
+    {"zc8143","The Breeze"},  //breeze
+    {"zc3949","Pride\nRadio"}, //pride 
+    {"zc4422","Hits"},  //hits
+    {"zc4409", "80's thru\nToday"},  //80s to today
+    {"zc8478","2010's"},  //2010
+    {"zc6850","2000's"},  //2000s
+    {"zc6834","90's"},  //90s
+    {"zc5060","80's"},  //80s
+    {"zc7078","Classic\nRock"},  //classic rock
+    {"zc6788","Reggae"} //Reggae
 };
-String station_names[] = {
-    "The Breeze",
-    "Pride Radio",
-    "The Hits",  //hits
-    "80's to today",
-    "2010's",
-    "2000's",
-    "90's",
-    "80's",
-    "Classic Rock",
-    "Reggae" //reggae
-};
+
 int station_index = 0;
 int station_count = sizeof(stations) / sizeof(stations[0]);
 
@@ -118,8 +125,9 @@ void setup()
     audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
     audio.setVolume(21); // 0...21
 
-    open_new_radio(stations[station_index]);
-    lcd_text(station_names[station_index]);
+    //first station
+    open_new_radio(musicURL(stations[station_index][0]));
+    lcd_text(stations[station_index][1]);
 }
 
 uint run_time = 0;
@@ -144,10 +152,19 @@ void loop()
           station_index = 0;
       }
       button_time = millis();
-      open_new_radio(stations[station_index]);
-      lcd_text(station_names[station_index]);
+
+      open_new_radio(musicURL(stations[station_index][0]));
+      lcd_text(stations[station_index][1]);
      }
 }
+
+String musicURL(String station_id)
+{
+  String url = ihrls + station_id;
+  //Serial.println(url);
+  return url;
+}
+
 
 void setupWIFI()
 {
@@ -205,57 +222,21 @@ void open_new_radio(String station)
     Serial.println("**********start a new radio************");
 }
 
-//TODO: change to display channel name
-void display_music()
-{
-    int line_step = 24;
-    int line = 0;
-    char buff[20];
-    ;
-    sprintf(buff, "RunningTime:%d",runtime);
-
-    display.clearDisplay();
-
-    display.setTextSize(1);              // Normal 1:1 pixel scale
-    display.setTextColor(SSD1306_WHITE); // Draw white text
-
-    display.setCursor(0, line); // Start at top-left corner
-    display.println(stations[station_index]);
-    line += line_step * 2;
-
-    display.setCursor(0, line);
-    display.println(buff);
-    line += line_step;
-
-    display.display();
-}
-
 void logoshow(void)
 {
-    display.clearDisplay();
-
-    display.setTextSize(2);              // Normal 1:1 pixel scale
-    display.setTextColor(SSD1306_WHITE); // Draw white text
-    display.setCursor(0, 0);             // Start at top-left corner
-    display.println(F("Will Radio"));
-    display.setCursor(0, 20); // Start at top-left corner
-    display.println(F("Button for Next"));
-    display.setCursor(0, 40); // Start at top-left corner
-    display.println(F(""));
-    display.display();
-    delay(2000);
+    lcd_text("Will Radio\nPress Button\nto go next");
+    delay(100);
 }
 
 void lcd_text(String text)
 {
     display.clearDisplay();
-
     display.setTextSize(2);              // Normal 1:1 pixel scale
     display.setTextColor(SSD1306_WHITE); // Draw white text
     display.setCursor(0, 0);             // Start at top-left corner
     display.println(text);
     display.display();
-    delay(500);
+    delay(100);
 }
 
 //**********************************************
