@@ -33,7 +33,7 @@ String getCovidURL()
 #include <M5StickC.h>
 // need for date? #include <WiFi.h>
 #include "ESPDateTime.h"
-#include <wificredentials.h>
+#include <wifi_credentials.h>
 
 #define TFT_GREY 0x5AEB
 

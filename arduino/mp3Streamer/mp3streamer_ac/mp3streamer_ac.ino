@@ -68,26 +68,17 @@ int runtime = 0;
 int length = 0;
 
 String stations[][2] = {
-  {"zc8143","The Breeze"},  //breeze
-  {"zc3949","Pride\nRadio"}, //pride 
-  {"zc4422","Hits"},  //hits
-  {"zc4409", "80's thru\nToday"},  //80s to today
-  {"zc8478","2010's"},  //2010
-  {"zc6850","2000's"},  //2000s
-  {"zc6834","90's"},  //90s
-  {"zc5060","80's"},  //80s
-  {"zc7078","Classic\nRock"},  //classic rock
-  {"zc6788","Reggae"}, //Reggae
-  {"zc6137","Christmas"}, //Christmas
-  {"zc6221","Beach"}, 
-  {"zc6878","Vinyl\nClassic\nRock"}, 
-  {"zc4717","Real Oldies"}, 
-  {"zc4439","Cool Oldies"},
-  {"zc6377","Classical"}, 
-  {"zc6137","Jazz"}, 
-  {"zc4719","R&B"}, 
-  {"zc6148","Hawaii"}, 
-  {"zc6437","90s Alt"}
+    {"zc8143","The Breeze"},  //breeze
+    {"zc3949","Pride\nRadio"}, //pride 
+    {"zc4422","Hits"},  //hits
+    {"zc4409", "80's thru\nToday"},  //80s to today
+    {"zc8478","2010's"},  //2010
+    {"zc6850","2000's"},  //2000s
+    {"zc6834","90's"},  //90s
+    {"zc5060","80's"},  //80s
+    {"zc7078","Classic\nRock"},  //classic rock
+    {"zc6788","Reggae"}, //Reggae
+    {"zc6137","Christmas"} //Christmas
 };
 
 int station_index = 0;
