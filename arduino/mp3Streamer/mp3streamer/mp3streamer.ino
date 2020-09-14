@@ -68,17 +68,17 @@ int runtime = 0;
 int length = 0;
 
 String stations[][2] = {
-  {"zc8143","The Breeze"},  //breeze
-  {"zc3949","Pride\nRadio"}, //pride 
-  {"zc4422","Hits"},  //hits
-  {"zc4409", "80's thru\nToday"},  //80s to today
-  {"zc8478","2010's"},  //2010
-  {"zc6850","2000's"},  //2000s
-  {"zc6834","90's"},  //90s
-  {"zc5060","80's"},  //80s
-  {"zc7078","Classic\nRock"},  //classic rock
-  {"zc6788","Reggae"}, //Reggae
-  {"zc6137","Christmas"}, //Christmas
+  {"zc8143","The Breeze"},
+  {"zc3949","Pride\nRadio"},
+  {"zc4422","Hits"},
+  {"zc4409", "80's thru\nToday"},
+  {"zc8478","2010's"},
+  {"zc6850","2000's"},
+  {"zc6834","90's"},
+  {"zc5060","80's"},
+  {"zc7078","Classic\nRock"},
+  {"zc6788","Reggae"},
+  {"zc6137","Christmas"},
   {"zc6221","Beach"}, 
   {"zc6878","Vinyl\nClassic\nRock"}, 
   {"zc4717","Real Oldies"}, 
