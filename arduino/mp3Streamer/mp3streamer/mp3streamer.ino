@@ -2,6 +2,7 @@
 
 #include "Arduino.h"
 #include "Audio.h"
+#include "SPIFFS.h"
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 //#include "wificredentials.h"
@@ -44,28 +45,17 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 //const int Pin_previous = 15;
 //const int Pin_pause = 33;
-//ALLEN const int Pin_next = 2;
 const String ihrls = "https://stream.revma.ihrhls.com/";
 const int Pin_next = 23;
+const String station_file = "/station.txt";
 
 Audio audio;
 WiFiMulti WiFiMulti;
 
-struct Music_info
-{
-    String name;
-    int length;
-    int runtime;
-    int volume;
-    int status;
-    int mute_volume;
-} music_info = {"", 0, 0, 0, 0, 0};
-
 int volume = 21;
 int mute_volume = 0;
-
-int runtime = 0;
-int length = 0;
+uint run_time = 0;
+uint button_time = 0;
 
 String stations[][2] = {
   {"zc8143","The Breeze"},
@@ -90,8 +80,10 @@ String stations[][2] = {
   {"zc6437","90s Alt"}
 };
 
-int station_index = 0;
 int station_count = sizeof(stations) / sizeof(stations[0]);
+int station_index = 0;
+int saved_station_index = -1;
+
 
 void setup()
 {
@@ -137,13 +129,12 @@ void setup()
     audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
     audio.setVolume(21); // 0...21
 
+    station_index = getFirstStation();
     //first station
     open_new_radio(musicURL(stations[station_index][0]));
     lcd_text(stations[station_index][1]);
 }
 
-uint run_time = 0;
-uint button_time = 0;
 
 void loop()
 {
@@ -164,9 +155,10 @@ void loop()
           station_index = 0;
       }
       button_time = millis();
-
+      
       open_new_radio(musicURL(stations[station_index][0]));
       lcd_text(stations[station_index][1]);
+      setStation(station_index);
      }
 }
 
@@ -177,6 +169,52 @@ String musicURL(String station_id)
   return url;
 }
 
+int getFirstStation()
+{
+  //https://techtutorialsx.com/2018/08/05/esp32-arduino-spiffs-reading-a-file/
+  //int station_index = 0;
+  //int saved_station_index = -1;
+  if(!SPIFFS.begin(true))
+  {
+        Serial.println("An Error has occurred while mounting SPIFFS");
+        return 0;
+  }
+  if (SPIFFS.exists(station_file))
+  {
+      File f = SPIFFS.open(station_file, "r");
+      if (f && f.size()) 
+      {
+          Serial.println("Dumping log file");
+          String fileData;
+      
+          while (f.available())
+          {
+            fileData += char(f.read());
+          }
+          f.close();
+          int stat_num = fileData.toInt();
+          if(stat_num > 0 && stat_num < station_count)
+          {
+            return stat_num;
+          }
+      }
+  }
+  return 0;
+}
+
+void setStation(int station_num)
+{
+  File file = SPIFFS.open(station_file, FILE_WRITE);
+  if(file.print(station_num))
+  {
+    Serial.println("File was written");;
+  }
+  else 
+  {
+    Serial.println("File write failed");
+  }
+  file.close();
+}
 
 void setupWIFI()
 {
@@ -220,17 +258,10 @@ void setupWIFI()
   Serial.println("connected");
 }
 
-void print_song_time()
-{
-    runtime = audio.getAudioCurrentTime();
-    length = audio.getAudioFileDuration();
-}
 
 void open_new_radio(String station)
 {
     audio.connecttohost(station);
-    runtime = audio.getAudioCurrentTime();
-    length = audio.getAudioFileDuration();
     Serial.println("**********start a new radio************");
 }
 
@@ -249,63 +280,4 @@ void lcd_text(String text)
     display.println(text);
     display.display();
     delay(100);
-}
-
-//**********************************************
-// optional
-void xx_audio_info(const char *info)//removing, since causes blip
-{
-    Serial.print("info        ");
-    Serial.println(info);
-}
-void xx_audio_id3data(const char *info)
-{ //id3 metadata
-    Serial.print("id3data     ");
-    Serial.println(info);
-}
-
-void xx_audio_eof_mp3(const char *info)
-{ //end of file
-    Serial.print("eof_mp3     ");
-    Serial.println(info);
-}
-void xx_audio_showstation(const char *info)
-{
-    Serial.print("station     ");
-    Serial.println(info);
-}
-void xx_audio_showstreaminfo(const char *info)
-{
-    Serial.print("streaminfo  ");
-    Serial.println(info);
-}
-void xx_audio_showstreamtitle(const char *info)
-{
-    Serial.print("streamtitle ");
-    Serial.println(info);
-}
-void xx_audio_bitrate(const char *info)
-{
-    Serial.print("bitrate     ");
-    Serial.println(info);
-}
-void xx_audio_commercial(const char *info)
-{ //duration in sec
-    Serial.print("commercial  ");
-    Serial.println(info);
-}
-void xx_audio_icyurl(const char *info)
-{ //homepage
-    Serial.print("icyurl      ");
-    Serial.println(info);
-}
-void xx_audio_lasthost(const char *info)
-{ //stream URL played
-    Serial.print("lasthost    ");
-    Serial.println(info);
-}
-void xx_audio_eof_speech(const char *info)
-{
-    Serial.print("eof_speech  ");
-    Serial.println(info);
 }
