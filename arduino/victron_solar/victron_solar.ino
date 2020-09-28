@@ -1,13 +1,14 @@
 // record data from Victron Solar Controller
 // Sept 26 2020
 // Author: Will Allen
-#include <ESP8266WiFiMulti.h>
+//TODO #include <ESP8266WiFiMulti.h>
 #include <ESP8266WiFi.h>
 #include <WiFiClientSecure.h>
 #include "ThingSpeak.h"
 #include <SoftwareSerial.h>
 #include <wifi_credentials.h>
-#define RXPIN D1 // receive
+//TODO: put thingspeak creds here.
+#define RXPIN D1 // receive -for esp8266 there are many pins that cannot be used.
 #define TXPIN D2 //trans
 
 /*
@@ -126,7 +127,8 @@ void loop()
   consoleWrite(String(sleepPerLoop/60000));    
   digitalWrite(LED_BUILTIN, HIGH);    // turn the LED off 
   delay(sleepPerLoop);
-  //TODO: deepsleep
+  //ESP.deepSleep(sleepPerLoop);  //need to wire from D0 to RST
+  //TODO: deepsleep - https://randomnerdtutorials.com/esp8266-deep-sleep-with-arduino-ide/
   // thingspeak needs minimum 15 sec delay between updates  
 }
 

@@ -31,8 +31,9 @@ int sleepPerLoop = 60*1000*60;  //1 hr
  
 void setup() 
 { 
+	WiFi.mode(WIFI_STA);
 	Serial.begin(115200);
-	Serial.println("waiting for power to stabilize - 30 secs");
+	Serial.println("waiting for power to stabilize");
 	delay(1000*10);  //10 secs
   //sslClient.setFingerprint(fingerprint);
   sslClient.setInsecure();
@@ -106,6 +107,7 @@ void setupWIFI()
 
 void startWIFI()
 {
+  WiFi.mode(WIFI_STA);
   while(WiFiMulti.run() != WL_CONNECTED) 
   {
       Serial.print(".");
