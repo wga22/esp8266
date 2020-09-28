@@ -2,10 +2,13 @@
 // Sept 26 2020
 // Author: Will Allen
 #include <ESP8266WiFiMulti.h>
+#include <ESP8266WiFi.h>
 #include <WiFiClientSecure.h>
+#include "ThingSpeak.h"
+#include <SoftwareSerial.h>
 #include <wifi_credentials.h>
-#define RXPIN 2 // what pin we're connected to
-#define TXPIN 3 // what pin we're connected to
+#define RXPIN D1 // receive
+#define TXPIN D2 //trans
 
 /*
  * thingspeak: https://thingspeak.com/channels/140150
@@ -73,45 +76,55 @@ H21 397     -- Maximum power today, W
 
 
 */ 
-String apiKey = "0NRCT2ZN3PNTMHUG";
+const char * TP_APPLE = "0NRCT2ZN3PNTMHUG";
+const unsigned long TP_CHANNEL = 140150;
 const int httpsPort = 443;
 const int SERIALRATE = 19200;
 //make sure you at least have a WIFI1 in your credentials file
 
 const unsigned int MAX_INPUT = 50;
 const char* server = "api.thingspeak.com";
-ESP8266WiFiMulti WiFiMulti;
+WiFiClient wifiClient;
 WiFiClientSecure sslClient;
+
+SoftwareSerial mySerial(RXPIN, TXPIN); // RX, TX
 
 bool resetWifiEachTime = true;
 int sleepPerLoop = 60*1000*60;  //1 hr   
 
 void setup() 
 { 
+	WiFi.mode(WIFI_STA);
+  pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(RXPIN, INPUT);
+  pinMode(TXPIN, OUTPUT);
 	Serial.begin(SERIALRATE);
 	consoleWrite("waiting for power to stabilize");
 	delay(1000*10);  //10 secs
   sslClient.setInsecure();
   //sslClient.setFingerprint(fingerprint);
-  setupWIFI();
+  ThingSpeak.begin(wifiClient);
+  mySerial.begin(SERIALRATE);
 }
 
 void consoleWrite(String out)
 {
   //do nothing for now, serial in use for reading!
   Serial.println(out);
+  mySerial.println(out);
 }
 
 void loop() 
 {
   startWIFI();
-
+  digitalWrite(LED_BUILTIN, LOW);   // turn the LED on 
   //write out the data
   consoleWrite("writeThingSpeak");
   writeThingSpeak();
   WiFi.disconnect();
   consoleWrite("End of loop...sleeping (mins) ");
   consoleWrite(String(sleepPerLoop/60000));    
+  digitalWrite(LED_BUILTIN, HIGH);    // turn the LED off 
   delay(sleepPerLoop);
   //TODO: deepsleep
   // thingspeak needs minimum 15 sec delay between updates  
@@ -141,17 +154,28 @@ int getBoxOfSerial(String searchString)
   int returnValue = -1;
   //pull no more than 100 lines looking for this value
   
-  for(int nLine = 0; nLine < 100 && returnValue==-1; nLine++)
+  for(int nLine = 0; nLine < 200 && returnValue==-1; nLine++)
   {
     static char input_line[MAX_INPUT];
     static unsigned int input_pos = 0;
     delay(100);
     //consoleWrite(".");
-  
+
+    bool ifFound = false;
+    char inByte;
+    if (mySerial.available() > 0)
+    {
+      inByte = mySerial.read();
+      ifFound = true;
+    }
     if (Serial.available() > 0)
     {
-      char inByte = Serial.read();
- 
+      inByte = Serial.read();
+      ifFound = true;
+    }
+
+    if(ifFound)
+    {
       switch (inByte)
       {
         case '\n':   // end of text
@@ -185,8 +209,32 @@ int getBoxOfSerial(String searchString)
   return returnValue;
 }
 
-
 void writeThingSpeak()
+{
+  /*
+  recording:
+  V 13790     -- Battery voltage, mV
+  I -10     -- Battery current, mA
+  VPV 15950     -- Panel voltage, mV
+  PPV 0     -- Panel power, W
+  CS  5     -- Charge state, 0 to 9
+  IL  0     -- Load current, mA
+  H22 0       -- Yield yesterday, kWh
+  H23 0     -- Maximum power yesterday, W
+  */
+  String fields[] = {"V", "I", "VPV", "PPV", "CS", "IL", "H22", "H23"};
+  for(int x = 0; x< 8; x++)
+  {
+    ThingSpeak.setField((x+1), getBoxOfSerial(fields[x]));
+  }
+ 
+  int rc = ThingSpeak.writeFields(TP_CHANNEL,TP_APPLE);
+  consoleWrite( String(rc));
+}
+
+
+
+void writeThingSpeakOrig()
 {
   int solarValues[8];
   /*
@@ -214,7 +262,7 @@ void writeThingSpeak()
   consoleWrite(String(solarValues[0]) + ", " +String(solarValues[1]) + ", " +String(solarValues[2]) + ", " +String(solarValues[3]) + ", " +String(solarValues[4]) + ", " +String(solarValues[5]));
   if (sslClient.connect(server,httpsPort)) 
   {  //   "184.106.153.149" or api.thingspeak.com
-    String postStr = apiKey;
+    String postStr = TP_APPLE;
     for(int x=0; x < 8; x++)  //8 fields
     {
       postStr +="&field"+String(x+1)+"=";
@@ -226,7 +274,7 @@ void writeThingSpeak()
      sslClient.print("POST /update HTTP/1.1\n"); 
      sslClient.print("Host: api.thingspeak.com\n"); 
      sslClient.print("Connection: close\n"); 
-     sslClient.print("X-THINGSPEAKAPIKEY: "+apiKey+"\n"); 
+     sslClient.print("X-THINGSPEAKAPIKEY: "+String(TP_APPLE)+"\n"); 
      sslClient.print("Content-Type: application/x-www-form-urlencoded\n"); 
      sslClient.print("Content-Length: "); 
      sslClient.print(postStr.length()); 
@@ -244,43 +292,18 @@ void writeThingSpeak()
 }
 
 
-void setupWIFI()
-{
-  char* ssid = "";
-  char* password = "";
-  WiFi.mode(WIFI_STA);
-  #ifdef WIFI1_S
-    ssid = WIFI1_S;
-    password = WIFI1_P;
-    WiFiMulti.addAP(ssid, password);
-  #endif
-  #ifdef WIFI2_S
-    ssid = WIFI2_S;
-    password = WIFI2_P;
-    WiFiMulti.addAP(ssid, password);
-  #endif
-  #ifdef WIFI3_S
-    ssid = WIFI3_S;
-    password = WIFI3_P;
-    WiFiMulti.addAP(ssid, password);
-  #endif
-  #ifdef WIFI4_S
-    ssid = WIFI4_S;
-    password = WIFI4_P;
-    WiFiMulti.addAP(ssid, password);
-  #endif
-    #ifdef WIFI5_S
-    ssid = WIFI5_S;
-    password = WIFI5_P;
-    WiFiMulti.addAP(ssid, password);
-  #endif
-}
-
 void startWIFI()
 {
-  while(WiFiMulti.run() != WL_CONNECTED) 
+  if(WiFi.status() != WL_CONNECTED)
   {
-      delay(1000);
+    Serial.print("Attempting to connect to SSID: ");
+    Serial.println(WIFI1_S);
+    while(WiFi.status() != WL_CONNECTED)
+    {
+      WiFi.begin(WIFI1_S, WIFI1_P);
+      Serial.print(".");
+      delay(5000);     
+    } 
+    Serial.println("\nConnected.");
   }
-  consoleWrite("connected");
 }
