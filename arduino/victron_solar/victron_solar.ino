@@ -1,7 +1,6 @@
 // record data from Victron Solar Controller
 // Sept 26 2020
 // Author: Will Allen
-// www.arduinesp.com 
 #include <ESP8266WiFiMulti.h>
 #include <WiFiClientSecure.h>
 #include <wifi_credentials.h>
@@ -90,8 +89,9 @@ int sleepPerLoop = 60*1000*60;  //1 hr
 void setup() 
 { 
 	Serial.begin(SERIALRATE);
-	consoleWrite("waiting for power to stabilize - 30 secs");
+	consoleWrite("waiting for power to stabilize");
 	delay(1000*10);  //10 secs
+  sslClient.setInsecure();
   //sslClient.setFingerprint(fingerprint);
   setupWIFI();
 }
@@ -99,6 +99,7 @@ void setup()
 void consoleWrite(String out)
 {
   //do nothing for now, serial in use for reading!
+  Serial.println(out);
 }
 
 void loop() 
@@ -116,38 +117,21 @@ void loop()
   // thingspeak needs minimum 15 sec delay between updates  
 }
 
-void getSolarValuesFromSerial(int *solarValues)
-{
-  /*
-  recording:
-  V 13790     -- Battery voltage, mV
-  I -10     -- Battery current, mA
-  VPV 15950     -- Panel voltage, mV
-  PPV 0     -- Panel power, W
-  CS  5     -- Charge state, 0 to 9
-  IL  0     -- Load current, mA
-  H22 0       -- Yield yesterday, kWh
-  H23 0     -- Maximum power yesterday, W
-  */
-  solarValues[0] = getBoxOfSerial("V");
-  solarValues[1] = getBoxOfSerial("I");
-  solarValues[2] = getBoxOfSerial("VPV");
-  solarValues[3] = getBoxOfSerial("PPV");
-  solarValues[4] = getBoxOfSerial("CS");
-  solarValues[5] = getBoxOfSerial("IL");
-  solarValues[6] = getBoxOfSerial("H22");
-  solarValues[7] = getBoxOfSerial("H23");
-}
 
 int process_data(String searchString, String rowFromPanel)
 {
   int res = -1;
   int posOfVar = rowFromPanel.indexOf(searchString);
-  if(posOfVar > 0)
+  if(posOfVar > -1)
   {
-    String valueDetail = rowFromPanel.substring(posOfVar);
+    String valueDetail = rowFromPanel.substring(1+searchString.length());
     valueDetail.trim();
     res = valueDetail.toInt();
+    consoleWrite("found line and match:" + searchString + " == " + rowFromPanel + " -> " + valueDetail + " ->" + res);
+  }
+  else
+  {
+    consoleWrite("found line, but no match:" + searchString + " <> " + rowFromPanel);
   }
   return res;
 }
@@ -159,10 +143,12 @@ int getBoxOfSerial(String searchString)
   
   for(int nLine = 0; nLine < 100 && returnValue==-1; nLine++)
   {
-    char input_line[MAX_INPUT];
-    unsigned int input_pos = 0;
+    static char input_line[MAX_INPUT];
+    static unsigned int input_pos = 0;
+    delay(100);
+    //consoleWrite(".");
   
-    if (Serial.available () > 0)
+    if (Serial.available() > 0)
     {
       char inByte = Serial.read();
  
@@ -189,6 +175,7 @@ int getBoxOfSerial(String searchString)
           if (input_pos < (MAX_INPUT - 1))
           {
             input_line[input_pos++] = inByte;
+            //Serial.print(inByte);
           }
           break;
   
@@ -202,7 +189,29 @@ int getBoxOfSerial(String searchString)
 void writeThingSpeak()
 {
   int solarValues[8];
-  getSolarValuesFromSerial(solarValues);
+  /*
+  recording:
+  V 13790     -- Battery voltage, mV
+  I -10     -- Battery current, mA
+  VPV 15950     -- Panel voltage, mV
+  PPV 0     -- Panel power, W
+  CS  5     -- Charge state, 0 to 9
+  IL  0     -- Load current, mA
+  H22 0       -- Yield yesterday, kWh
+  H23 0     -- Maximum power yesterday, W
+  */
+  solarValues[0] = getBoxOfSerial("V");
+  solarValues[1] = getBoxOfSerial("I");
+  solarValues[2] = getBoxOfSerial("VPV");
+  solarValues[3] = getBoxOfSerial("PPV");
+  solarValues[4] = getBoxOfSerial("CS");
+  solarValues[5] = getBoxOfSerial("IL");
+  solarValues[6] = getBoxOfSerial("H22");
+  solarValues[7] = getBoxOfSerial("H23");
+
+
+  
+  consoleWrite(String(solarValues[0]) + ", " +String(solarValues[1]) + ", " +String(solarValues[2]) + ", " +String(solarValues[3]) + ", " +String(solarValues[4]) + ", " +String(solarValues[5]));
   if (sslClient.connect(server,httpsPort)) 
   {  //   "184.106.153.149" or api.thingspeak.com
     String postStr = apiKey;
@@ -228,8 +237,8 @@ void writeThingSpeak()
   }
   else
   {
-    consoleWrite("didnt connect to ");
-    consoleWrite(server);
+    consoleWrite("didnt connect to " + String(server));
+    //consoleWrite(server);
   }
   sslClient.stop();
 }
