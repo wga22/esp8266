@@ -95,13 +95,13 @@ int sleepPerLoop = 60*1000*60;  //1 hr
 
 void setup() 
 { 
+  consoleWrite("waiting for power to stabilize");
+  delay(1000*10);  //10 secs
 	WiFi.mode(WIFI_STA);
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(RXPIN, INPUT);
   pinMode(TXPIN, OUTPUT);
 	Serial.begin(SERIALRATE);
-	consoleWrite("waiting for power to stabilize");
-	delay(1000*10);  //10 secs
   sslClient.setInsecure();
   //sslClient.setFingerprint(fingerprint);
   ThingSpeak.begin(wifiClient);
@@ -123,23 +123,24 @@ void loop()
   consoleWrite("writeThingSpeak");
   writeThingSpeak();
   WiFi.disconnect();
-  consoleWrite("End of loop...sleeping (mins) ");
-  consoleWrite(String(sleepPerLoop/60000));    
+  consoleWrite("End of loop...sleeping ("+String(sleepPerLoop/60000)+"mins) ");
   digitalWrite(LED_BUILTIN, HIGH);    // turn the LED off 
-  delay(sleepPerLoop);
-  //ESP.deepSleep(sleepPerLoop);  //need to wire from D0 to RST
-  //TODO: deepsleep - https://randomnerdtutorials.com/esp8266-deep-sleep-with-arduino-ide/
+  //delay(sleepPerLoop);
+  
+  ESP.deepSleep(3600e6);  //need to wire from D0 to RST ---- * 1000 since using microseconds
+  //deepsleep - https://randomnerdtutorials.com/esp8266-deep-sleep-with-arduino-ide/
   // thingspeak needs minimum 15 sec delay between updates  
 }
 
 
 int process_data(String searchString, String rowFromPanel)
 {
+  //TODO - are longer searchstrings not working?
   int res = -1;
   int posOfVar = rowFromPanel.indexOf(searchString);
   if(posOfVar > -1)
   {
-    String valueDetail = rowFromPanel.substring(1+searchString.length());
+    String valueDetail = rowFromPanel.substring(searchString.length());//make sure space is in the searchstring
     valueDetail.trim();
     res = valueDetail.toInt();
     consoleWrite("found line and match:" + searchString + " == " + rowFromPanel + " -> " + valueDetail + " ->" + res);
@@ -154,12 +155,11 @@ int process_data(String searchString, String rowFromPanel)
 int getBoxOfSerial(String searchString)
 {
   int returnValue = -1;
-  //pull no more than 100 lines looking for this value
+  //pull no more than "x" lines looking for this value
   
-  for(int nLine = 0; nLine < 200 && returnValue==-1; nLine++)
+  static String inputLine = "";
+  for(int nLine = 0; nLine < 2000 && returnValue==-1; nLine++)
   {
-    static char input_line[MAX_INPUT];
-    static unsigned int input_pos = 0;
     delay(100);
     //consoleWrite(".");
 
@@ -181,15 +181,10 @@ int getBoxOfSerial(String searchString)
       switch (inByte)
       {
         case '\n':   // end of text
-        {
-          input_line [input_pos] = 0;  // terminating null byte
-         
-          // terminator reached! process input_line here ...
-          String row = input_line;
-          returnValue = process_data(searchString, row);
-         
+        {       
+          returnValue = process_data(searchString, inputLine);
+          inputLine = "";
           // reset buffer for next time
-          input_pos = 0; 
           break;
         }
         case '\r':   // discard carriage return
@@ -197,12 +192,7 @@ int getBoxOfSerial(String searchString)
           break;
    
         default:
-          // keep adding if not full ... allow for terminating null byte
-          if (input_pos < (MAX_INPUT - 1))
-          {
-            input_line[input_pos++] = inByte;
-            //Serial.print(inByte);
-          }
+            inputLine += inByte;
           break;
   
         }  // end of switch
@@ -224,75 +214,14 @@ void writeThingSpeak()
   H22 0       -- Yield yesterday, kWh
   H23 0     -- Maximum power yesterday, W
   */
-  String fields[] = {"V", "I", "VPV", "PPV", "CS", "IL", "H22", "H23"};
+  String fields[] = {"V ", "I ", "VPV ", "PPV ", "CS ", "IL ", "H22 ", "H23 "};
   for(int x = 0; x< 8; x++)
   {
     ThingSpeak.setField((x+1), getBoxOfSerial(fields[x]));
   }
- 
   int rc = ThingSpeak.writeFields(TP_CHANNEL,TP_APPLE);
   consoleWrite( String(rc));
 }
-
-
-
-void writeThingSpeakOrig()
-{
-  int solarValues[8];
-  /*
-  recording:
-  V 13790     -- Battery voltage, mV
-  I -10     -- Battery current, mA
-  VPV 15950     -- Panel voltage, mV
-  PPV 0     -- Panel power, W
-  CS  5     -- Charge state, 0 to 9
-  IL  0     -- Load current, mA
-  H22 0       -- Yield yesterday, kWh
-  H23 0     -- Maximum power yesterday, W
-  */
-  solarValues[0] = getBoxOfSerial("V");
-  solarValues[1] = getBoxOfSerial("I");
-  solarValues[2] = getBoxOfSerial("VPV");
-  solarValues[3] = getBoxOfSerial("PPV");
-  solarValues[4] = getBoxOfSerial("CS");
-  solarValues[5] = getBoxOfSerial("IL");
-  solarValues[6] = getBoxOfSerial("H22");
-  solarValues[7] = getBoxOfSerial("H23");
-
-
-  
-  consoleWrite(String(solarValues[0]) + ", " +String(solarValues[1]) + ", " +String(solarValues[2]) + ", " +String(solarValues[3]) + ", " +String(solarValues[4]) + ", " +String(solarValues[5]));
-  if (sslClient.connect(server,httpsPort)) 
-  {  //   "184.106.153.149" or api.thingspeak.com
-    String postStr = TP_APPLE;
-    for(int x=0; x < 8; x++)  //8 fields
-    {
-      postStr +="&field"+String(x+1)+"=";
-      postStr += String(solarValues[x]);
-      consoleWrite("field"+String(x+1)+": " + String(solarValues[x]));
-    }
-    postStr += "\r\n\r\n";
- 
-     sslClient.print("POST /update HTTP/1.1\n"); 
-     sslClient.print("Host: api.thingspeak.com\n"); 
-     sslClient.print("Connection: close\n"); 
-     sslClient.print("X-THINGSPEAKAPIKEY: "+String(TP_APPLE)+"\n"); 
-     sslClient.print("Content-Type: application/x-www-form-urlencoded\n"); 
-     sslClient.print("Content-Length: "); 
-     sslClient.print(postStr.length()); 
-     sslClient.print("\n\n"); 
-     sslClient.print(postStr);
-
-     consoleWrite(postStr);
-  }
-  else
-  {
-    consoleWrite("didnt connect to " + String(server));
-    //consoleWrite(server);
-  }
-  sslClient.stop();
-}
-
 
 void startWIFI()
 {
@@ -300,12 +229,18 @@ void startWIFI()
   {
     Serial.print("Attempting to connect to SSID: ");
     Serial.println(WIFI1_S);
-    while(WiFi.status() != WL_CONNECTED)
+    int x =22;
+    while(WiFi.status() != WL_CONNECTED && x-- >0)
     {
       WiFi.begin(WIFI1_S, WIFI1_P);
       Serial.print(".");
       delay(5000);     
     } 
+    if(x<1)
+    {
+      //something wrong
+      ESP.restart();
+    }
     Serial.println("\nConnected.");
   }
 }
