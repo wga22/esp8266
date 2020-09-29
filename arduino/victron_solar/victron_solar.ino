@@ -102,17 +102,20 @@ void setup()
   pinMode(RXPIN, INPUT);
   pinMode(TXPIN, OUTPUT);
 	Serial.begin(SERIALRATE);
-  sslClient.setInsecure();
+  //sslClient.setInsecure();
   //sslClient.setFingerprint(fingerprint);
   ThingSpeak.begin(wifiClient);
   mySerial.begin(SERIALRATE);
+  String setupMessage = "connected to second serial: " + String(RXPIN) + ", " + String(TXPIN);
+  mySerial.println(setupMessage);
+  consoleWrite(setupMessage);
 }
 
 void consoleWrite(String out)
 {
   //do nothing for now, serial in use for reading!
   Serial.println(out);
-  mySerial.println(out);
+  //mySerial.println(out);
 }
 
 void loop() 
@@ -120,14 +123,13 @@ void loop()
   startWIFI();
   digitalWrite(LED_BUILTIN, LOW);   // turn the LED on 
   //write out the data
-  consoleWrite("writeThingSpeak");
   writeThingSpeak();
   WiFi.disconnect();
   consoleWrite("End of loop...sleeping ("+String(sleepPerLoop/60000)+"mins) ");
   digitalWrite(LED_BUILTIN, HIGH);    // turn the LED off 
   //delay(sleepPerLoop);
   
-  ESP.deepSleep(3600e6);  //need to wire from D0 to RST ---- * 1000 since using microseconds
+  ESP.deepSleep(3000e6);  //need to wire from D0 to RST ---- * 1000 since using microseconds
   //deepsleep - https://randomnerdtutorials.com/esp8266-deep-sleep-with-arduino-ide/
   // thingspeak needs minimum 15 sec delay between updates  
 }
@@ -158,9 +160,9 @@ int getBoxOfSerial(String searchString)
   //pull no more than "x" lines looking for this value
   
   static String inputLine = "";
-  for(int nLine = 0; nLine < 2000 && returnValue==-1; nLine++)
+  for(int nLine = 0; nLine < 1000 && returnValue==-1; nLine++)
   {
-    delay(100);
+    delay(10);
     //consoleWrite(".");
 
     bool ifFound = false;
@@ -214,13 +216,17 @@ void writeThingSpeak()
   H22 0       -- Yield yesterday, kWh
   H23 0     -- Maximum power yesterday, W
   */
-  String fields[] = {"V ", "I ", "VPV ", "PPV ", "CS ", "IL ", "H22 ", "H23 "};
+  consoleWrite("writeThingSpeak start");
+  String fields[] = {"V\t", "I\t", "VPV\t", "PPV\t", "CS\t", "IL\t", "H22\t", "H23\t"};
   for(int x = 0; x< 8; x++)
   {
-    ThingSpeak.setField((x+1), getBoxOfSerial(fields[x]));
+    consoleWrite("field:" +fields[x] );
+    int fieldVal = getBoxOfSerial(fields[x]);
+    ThingSpeak.setField((x+1), fieldVal);
+    consoleWrite("field:" +fields[x] + " value " +  fieldVal);
   }
   int rc = ThingSpeak.writeFields(TP_CHANNEL,TP_APPLE);
-  consoleWrite( String(rc));
+  consoleWrite( "TP return code: " +  String(rc));
 }
 
 void startWIFI()
