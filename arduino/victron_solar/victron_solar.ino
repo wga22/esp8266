@@ -207,14 +207,14 @@ void writeThingSpeak()
 {
   /*
   recording:
-  V 13790     -- Battery voltage, mV
-  I -10     -- Battery current, mA
-  VPV 15950     -- Panel voltage, mV
-  PPV 0     -- Panel power, W
-  CS  5     -- Charge state, 0 to 9
-  IL  0     -- Load current, mA
-  H22 0       -- Yield yesterday, kWh
-  H23 0     -- Maximum power yesterday, W
+  V 13790     -- Battery voltage, mV  -working
+  I -10     -- Battery current, mA    -working
+  VPV 15950     -- Panel voltage, mV  -working
+  PPV 0     -- Panel power, W         -NOT
+  CS  5     -- Charge state, 0 to 9   -NOT
+  IL  0     -- Load current, mA       -NOT
+  H22 0       -- Yield yesterday, kWh -NOT
+  H23 0     -- Maximum power yesterday, W  -NOT
   */
   consoleWrite("writeThingSpeak start");
   String fields[] = {"V\t", "I\t", "VPV\t", "PPV\t", "CS\t", "IL\t", "H22\t", "H23\t"};
