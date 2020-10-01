@@ -104,8 +104,6 @@ void setup()
 	Serial.begin(SERIALRATE);
   //sslClient.setInsecure();
   //sslClient.setFingerprint(fingerprint);
-  ThingSpeak.begin(wifiClient);
-  mySerial.begin(SERIALRATE);
   String setupMessage = "connected to second serial: " + String(RXPIN) + ", " + String(TXPIN);
   mySerial.println(setupMessage);
   consoleWrite(setupMessage);
@@ -120,20 +118,24 @@ void consoleWrite(String out)
 
 void loop() 
 {
+  //setup
   startWIFI();
-  digitalWrite(LED_BUILTIN, LOW);   // turn the LED on 
+  ThingSpeak.begin(wifiClient);
+  mySerial.begin(SERIALRATE);
+
+  //process
   //write out the data
   writeThingSpeak();
-  WiFi.disconnect();
-  consoleWrite("End of loop...sleeping ("+String(sleepPerLoop/60000)+"mins) ");
-  digitalWrite(LED_BUILTIN, HIGH);    // turn the LED off 
   //delay(sleepPerLoop);
-  
+
+  //closeout
+  WiFi.disconnect();
+  mySerial.end();
+  consoleWrite("CLOSEOUT: End of loop...sleeping ("+String(sleepPerLoop/60000)+"mins) ");
   ESP.deepSleep(3000e6);  //need to wire from D0 to RST ---- * 1000 since using microseconds
   //deepsleep - https://randomnerdtutorials.com/esp8266-deep-sleep-with-arduino-ide/
   // thingspeak needs minimum 15 sec delay between updates  
 }
-
 
 int process_data(String searchString, String rowFromPanel)
 {
@@ -157,49 +159,17 @@ int process_data(String searchString, String rowFromPanel)
 int getBoxOfSerial(String searchString)
 {
   int returnValue = -1;
-  //pull no more than "x" lines looking for this value
-  
-  static String inputLine = "";
-  for(int nLine = 0; nLine < 1000 && returnValue==-1; nLine++)
+  blinkLED(-1); //turn LED on while processing off
+  for(int nLine = 0; nLine < 6000 && returnValue==-1; nLine++)  //give 1 min to find the data
   {
-    delay(10);
-    //consoleWrite(".");
-
-    bool ifFound = false;
-    char inByte;
-    if (mySerial.available() > 0)
+    if(mySerial.available()>0)
     {
-      inByte = mySerial.read();
-      ifFound = true;
+      String inputLine = mySerial.readStringUntil('\n');
+      returnValue = process_data(searchString, inputLine);
     }
-    if (Serial.available() > 0)
-    {
-      inByte = Serial.read();
-      ifFound = true;
-    }
-
-    if(ifFound)
-    {
-      switch (inByte)
-      {
-        case '\n':   // end of text
-        {       
-          returnValue = process_data(searchString, inputLine);
-          inputLine = "";
-          // reset buffer for next time
-          break;
-        }
-        case '\r':   // discard carriage return
-          //consoleWrite("nothing");
-          break;
-   
-        default:
-            inputLine += inByte;
-          break;
-  
-        }  // end of switch
-    }  // end of incoming data    
+    delay(60);
   }//for maxtries
+  blinkLED(-1);   //turn LED back off
   return returnValue;
 }
 
@@ -217,16 +187,48 @@ void writeThingSpeak()
   H23 0     -- Maximum power yesterday, W  -NOT
   */
   consoleWrite("writeThingSpeak start");
-  String fields[] = {"V\t", "I\t", "VPV\t", "PPV\t", "CS\t", "IL\t", "H22\t", "H23\t"};
+  String fields[] = {"V\t", "I\t", "VPV\t", "PPV\t", "CS\t", "IL\t", "H22\t", "H23\t"}; //tab is separator character
   for(int x = 0; x< 8; x++)
   {
     consoleWrite("field:" +fields[x] );
     int fieldVal = getBoxOfSerial(fields[x]);
     ThingSpeak.setField((x+1), fieldVal);
     consoleWrite("field:" +fields[x] + " value " +  fieldVal);
+    blinkLED(x+1);
   }
   int rc = ThingSpeak.writeFields(TP_CHANNEL,TP_APPLE);
   consoleWrite( "TP return code: " +  String(rc));
+}
+
+void blinkLED(int times)
+{
+  static int LEDON = 0;
+  if(times >0)
+  {
+    for(int x=0; x < times; x++)
+    {
+      digitalWrite(LED_BUILTIN, LOW);   // turn the LED on 
+      LEDON = 1;
+      Serial.print(".");
+      delay(222);
+      digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on 
+      LEDON = 0;
+      delay(222);
+    }
+  }
+  else
+  {
+    if(LEDON==1)
+    {
+      LEDON=0;
+      digitalWrite(LED_BUILTIN, HIGH);
+    }
+    else
+    {
+       LEDON=0;
+       digitalWrite(LED_BUILTIN, LOW);
+    }
+  }
 }
 
 void startWIFI()
@@ -238,9 +240,9 @@ void startWIFI()
     int x =22;
     while(WiFi.status() != WL_CONNECTED && x-- >0)
     {
+      
       WiFi.begin(WIFI1_S, WIFI1_P);
-      Serial.print(".");
-      delay(5000);     
+      blinkLED(10);
     } 
     if(x<1)
     {
