@@ -1,3 +1,9 @@
+/*
+Will - MP3 Iheart streamer
+Special thanks:  https://github.com/schreibfaul1/ESP32-audioI2S
+*/
+
+#define SSD1306 0
 #include <wifi_credentials.h>
 
 #include "Arduino.h"
@@ -5,37 +11,22 @@
 #include "SPIFFS.h"
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
-//#include "wificredentials.h"
 #include <WiFiMulti.h>
 
-/*
-//Digital I/O used  //Makerfabs Audio V2.0
-#define I2S_DOUT 22
-#define I2S_BCLK 23
-#define I2S_LRC 21
-
-//SSD1306
-#define MAKEPYTHON_ESP32_SDA 0
-#define MAKEPYTHON_ESP32_SCL 4
-#define SCREEN_WIDTH 128 // OLED display width, in pixels
-#define SCREEN_HEIGHT 64 // OLED display height, in pixels
-#define OLED_RESET -1    // Reset pin # (or -1 if sharing Arduino reset pin)
-*/
 //Digital I/O used  //Makerfabs Audio V2.0
 #define I2S_LRC 0
 #define I2S_DOUT 15
 #define I2S_BCLK 2
 
+#ifdef SSD1306
 //SSD1306
-#define MAKEPYTHON_ESP32_SDA 21
-#define MAKEPYTHON_ESP32_SCL 19
-#define SCREEN_WIDTH 128 // OLED display width, in pixels
-#define SCREEN_HEIGHT 64 // OLED display height, in pixels
-#define OLED_RESET -1    // Reset pin # (or -1 if sharing Arduino reset pin)
-
-
-
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+  #define MAKEPYTHON_ESP32_SDA 21
+  #define MAKEPYTHON_ESP32_SCL 19
+  #define SCREEN_WIDTH 128 // OLED display width, in pixels
+  #define SCREEN_HEIGHT 64 // OLED display height, in pixels
+  #define OLED_RESET -1    // Reset pin # (or -1 if sharing Arduino reset pin)
+  Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+#endif
 
 //Button
 
@@ -97,18 +88,19 @@ void setup()
 
     //Serial
     Serial.begin(115200);
-
-    //LCD
-    Wire.begin(MAKEPYTHON_ESP32_SDA, MAKEPYTHON_ESP32_SCL);
-    // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
-    if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C))
-    { // Address 0x3C for 128x32
-        Serial.println(F("SSD1306 allocation failed"));
-        for (;;)
-            ; // Don't proceed, loop forever
-    }
-    display.clearDisplay();
-    logoshow();
+    #ifdef SSD1306
+      //LCD
+      Wire.begin(MAKEPYTHON_ESP32_SDA, MAKEPYTHON_ESP32_SCL);
+      // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
+      if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C))
+      { // Address 0x3C for 128x32
+          Serial.println(F("SSD1306 allocation failed"));
+          for (;;)
+              ; // Don't proceed, loop forever
+      }
+      display.clearDisplay();
+      logoshow();
+    #endif
 
     //connect to WiFi
     setupWIFI();
@@ -265,6 +257,8 @@ void open_new_radio(String station)
     Serial.println("**********start a new radio************");
 }
 
+
+#ifdef SSD1306
 void logoshow(void)
 {
     lcd_text("Will Radio\nPress\nButton\nto go next");
@@ -281,3 +275,4 @@ void lcd_text(String text)
     display.display();
     delay(100);
 }
+#endif
