@@ -3,8 +3,13 @@ Will - MP3 Iheart streamer
 Special thanks:  https://github.com/schreibfaul1/ESP32-audioI2S
 */
 
-#define SSD1306 0
+//possible configurations
+//#define SSD1306
+#define TTGO 1    //https://sites.google.com/site/jmaathuis/arduino/lilygo-ttgo-t-display-esp32
+
+
 #include <wifi_credentials.h>
+#include "Button2.h";
 
 #include "Arduino.h"
 #include "Audio.h"
@@ -13,19 +18,36 @@ Special thanks:  https://github.com/schreibfaul1/ESP32-audioI2S
 #include <Adafruit_SSD1306.h>
 #include <WiFiMulti.h>
 
-//Digital I/O used  //Makerfabs Audio V2.0
-#define I2S_LRC 0
-#define I2S_DOUT 15
-#define I2S_BCLK 2
 
 #ifdef SSD1306
 //SSD1306
+  //Digital I/O used  //Makerfabs Audio V2.0
+  #define I2S_LRC 0
+  #define I2S_DOUT 15
+  #define I2S_BCLK 2
+  #define PIN_NEXT 35
+  
   #define MAKEPYTHON_ESP32_SDA 21
   #define MAKEPYTHON_ESP32_SCL 19
   #define SCREEN_WIDTH 128 // OLED display width, in pixels
   #define SCREEN_HEIGHT 64 // OLED display height, in pixels
   #define OLED_RESET -1    // Reset pin # (or -1 if sharing Arduino reset pin)
+//const int Pin_previous = 15;
   Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+#endif
+
+
+#ifdef TTGO
+  #include <TFT_eSPI.h> // Graphics and font library for ST7735 driver chip
+  #include <SPI.h>
+  //Digital I/O used  //Makerfabs Audio V2.0
+  #define I2S_LRC 21 //TODO
+  #define I2S_DOUT 22//TODO
+  #define I2S_BCLK 17 //TODO
+  //#define PIN_PREVIOUS 0
+  #define PIN_NEXT 35
+
+  TFT_eSPI tft = TFT_eSPI();  // Invoke library, pins defined in User_Setup.h
 #endif
 
 //Button
@@ -34,14 +56,13 @@ Special thanks:  https://github.com/schreibfaul1/ESP32-audioI2S
 //const int Pin_vol_down = 36;
 //const int Pin_mute = 35;
 
-//const int Pin_previous = 15;
 //const int Pin_pause = 33;
 const String ihrls = "https://stream.revma.ihrhls.com/";
-const int Pin_next = 23;
 const String station_file = "/station.txt";
 
 Audio audio;
 WiFiMulti WiFiMulti;
+Button2 nextButton = Button2(PIN_NEXT);
 
 int volume = 21;
 int mute_volume = 0;
@@ -78,29 +99,36 @@ int saved_station_index = -1;
 
 void setup()
 {
-    //IO mode init
-    //pinMode(Pin_vol_up, INPUT_PULLUP);
-    //pinMode(Pin_vol_down, INPUT_PULLUP);
-    //pinMode(Pin_mute, INPUT_PULLUP);
-    //pinMode(Pin_previous, INPUT_PULLUP);
-    //pinMode(Pin_pause, INPUT_PULLUP);
-    pinMode(Pin_next, INPUT_PULLUP);
+  Serial.begin(19200);
 
-    //Serial
-    Serial.begin(115200);
-    #ifdef SSD1306
-      //LCD
-      Wire.begin(MAKEPYTHON_ESP32_SDA, MAKEPYTHON_ESP32_SCL);
-      // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
-      if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C))
-      { // Address 0x3C for 128x32
-          Serial.println(F("SSD1306 allocation failed"));
-          for (;;)
-              ; // Don't proceed, loop forever
-      }
-      display.clearDisplay();
-      logoshow();
-    #endif
+  //IO mode init
+  //pinMode(Pin_vol_up, INPUT_PULLUP);
+  //pinMode(Pin_vol_down, INPUT_PULLUP);
+  //pinMode(Pin_mute, INPUT_PULLUP);
+  //pinMode(Pin_previous, INPUT_PULLUP);
+  //pinMode(Pin_pause, INPUT_PULLUP);
+  //pinMode(PIN_NEXT, INPUT_PULLUP);
+  nextButton.setClickHandler(nextSong);
+  #ifdef PIN_PREVIOUS
+    pinMode(PIN_PREVIOUS, INPUT_PULLUP);
+  #endif 
+  #ifdef SSD1306
+    //LCD
+    Wire.begin(MAKEPYTHON_ESP32_SDA, MAKEPYTHON_ESP32_SCL);
+    // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
+    if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C))
+    { // Address 0x3C for 128x32
+        Serial.println(F("SSD1306 allocation failed"));
+        for (;;)
+            ; // Don't proceed, loop forever
+    }
+    display.clearDisplay();
+    logoshow();
+  #endif
+
+  #ifdef TTGO
+    tft.init();   // initialize a ST7735S chip
+  #endif
 
     //connect to WiFi
     setupWIFI();
@@ -116,7 +144,7 @@ void setup()
     Serial.println(" CONNECTED");
     lcd_text("Wifi CONNECT");
      */
-
+     lcd_text("Wifi CONNECT");
     //Audio(I2S)
     audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
     audio.setVolume(21); // 0...21
@@ -130,28 +158,36 @@ void setup()
 
 void loop()
 {
+    nextButton.loop();
     audio.loop();
-    //print_song_time();
-    if (digitalRead(Pin_next) == 0 && millis() - button_time > 300)
-    {
-      //button_time = millis();
-      Serial.print("PRESSED: " );
-      Serial.println(button_time);
-      Serial.println("Pin_next");
-      if (station_index < station_count - 1)
-      {
-          station_index++;
-      }
-      else
-      {
-          station_index = 0;
-      }
-      button_time = millis();
-      
-      open_new_radio(musicURL(stations[station_index][0]));
-      lcd_text(stations[station_index][1]);
-      setStation(station_index);
-     }
+}
+
+void nextSong(Button2& btn)
+{
+  Serial.println("next");
+  station_index++;
+  if(station_index >= station_count) //at the end
+  {
+    station_index = 0;
+  }
+  changeStation();
+}
+
+void prevSong()
+{
+  station_index--;
+  if (station_index < 0 )//circle back through beginning
+  {
+    station_index = station_count-1;
+  }
+  changeStation();
+}
+
+void changeStation()
+{
+  open_new_radio(musicURL(stations[station_index][0]));
+  lcd_text(stations[station_index][1]);
+  setStation(station_index);
 }
 
 String musicURL(String station_id)
@@ -176,7 +212,6 @@ int getFirstStation()
       File f = SPIFFS.open(station_file, "r");
       if (f && f.size()) 
       {
-          Serial.println("Dumping log file");
           String fileData;
       
           while (f.available())
@@ -185,6 +220,7 @@ int getFirstStation()
           }
           f.close();
           int stat_num = fileData.toInt();
+          Serial.println("reading station info to file: " + String(stat_num));
           if(stat_num > 0 && stat_num < station_count)
           {
             return stat_num;
@@ -257,6 +293,17 @@ void open_new_radio(String station)
     Serial.println("**********start a new radio************");
 }
 
+#ifdef TTGO
+void lcd_text(String text)
+{
+  tft.setTextWrap(true);
+  tft.fillScreen(TFT_BLACK);
+  tft.setCursor(0, 30);
+  tft.setTextColor(TFT_RED);
+  tft.setTextSize(2);
+  tft.println(text);
+}
+#endif
 
 #ifdef SSD1306
 void logoshow(void)
