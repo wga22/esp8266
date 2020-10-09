@@ -1,6 +1,10 @@
 /*
-Will - MP3 Iheart streamer
+MP3 Iheart streamer
 Special thanks:  https://github.com/schreibfaul1/ESP32-audioI2S
+Intial: Summer 2020
+Author: Will / wga22@yahoo.com
+
+known issue: button sometimes takes multiple presses
 */
 
 //possible configurations
@@ -41,10 +45,10 @@ Special thanks:  https://github.com/schreibfaul1/ESP32-audioI2S
   #include <TFT_eSPI.h> // Graphics and font library for ST7735 driver chip
   #include <SPI.h>
   //Digital I/O used  //Makerfabs Audio V2.0
-  #define I2S_LRC 21 //TODO
-  #define I2S_DOUT 22//TODO
-  #define I2S_BCLK 17 //TODO
-  //#define PIN_PREVIOUS 0
+  #define I2S_LRC 25
+  #define I2S_DOUT 26
+  #define I2S_BCLK 27 
+  #define PIN_PREVIOUS 0
   #define PIN_NEXT 35
 
   TFT_eSPI tft = TFT_eSPI();  // Invoke library, pins defined in User_Setup.h
@@ -63,6 +67,9 @@ const String station_file = "/station.txt";
 Audio audio;
 WiFiMulti WiFiMulti;
 Button2 nextButton = Button2(PIN_NEXT);
+#ifdef PIN_PREVIOUS
+  Button2 prevButton = Button2(PIN_PREVIOUS);
+#endif
 
 int volume = 21;
 int mute_volume = 0;
@@ -110,7 +117,7 @@ void setup()
   //pinMode(PIN_NEXT, INPUT_PULLUP);
   nextButton.setClickHandler(nextSong);
   #ifdef PIN_PREVIOUS
-    pinMode(PIN_PREVIOUS, INPUT_PULLUP);
+    prevButton.setClickHandler(prevSong);
   #endif 
   #ifdef SSD1306
     //LCD
@@ -159,6 +166,9 @@ void setup()
 void loop()
 {
     nextButton.loop();
+    #ifdef PIN_PREVIOUS
+      prevButton.loop();
+    #endif
     audio.loop();
 }
 
@@ -173,8 +183,9 @@ void nextSong(Button2& btn)
   changeStation();
 }
 
-void prevSong()
+void prevSong(Button2& btn)
 {
+  Serial.println("prev clicked");
   station_index--;
   if (station_index < 0 )//circle back through beginning
   {
@@ -320,6 +331,6 @@ void lcd_text(String text)
     display.setCursor(0, 0);             // Start at top-left corner
     display.println(text);
     display.display();
-    delay(100);
+    //delay(10);
 }
 #endif
