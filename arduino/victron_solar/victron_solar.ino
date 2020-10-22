@@ -187,12 +187,15 @@ void writeThingSpeak()
   H23 0     -- Maximum power yesterday, W  -NOT
   */
   consoleWrite("writeThingSpeak start");
-  String fields[] = {"V\t", "I\t", "VPV\t", "PPV\t", "CS\t", "IL\t", "H22\t", "H23\t"}; //tab is separator character
+  String fields[] = {"V\t", "I\t", "VPV\t", "H19\t", "CS\t", "IL\t", "H22\t", "H23\t"}; //tab is separator character
   for(int x = 0; x< 8; x++)
   {
     consoleWrite("field:" +fields[x] );
     int fieldVal = getBoxOfSerial(fields[x]);
-    ThingSpeak.setField((x+1), fieldVal);
+    if(fieldVal!=-1)
+    {
+      ThingSpeak.setField((x+1), fieldVal);
+    }
     consoleWrite("field:" +fields[x] + " value " +  fieldVal);
     blinkLED(x+1);
   }
@@ -216,7 +219,7 @@ void blinkLED(int times)
       delay(222);
     }
   }
-  else
+  else  //-1 means to toggle
   {
     if(LEDON==1)
     {
@@ -225,7 +228,7 @@ void blinkLED(int times)
     }
     else
     {
-       LEDON=0;
+       LEDON=1;
        digitalWrite(LED_BUILTIN, LOW);
     }
   }
@@ -240,14 +243,15 @@ void startWIFI()
     int x =22;
     while(WiFi.status() != WL_CONNECTED && x-- >0)
     {
-      
       WiFi.begin(WIFI1_S, WIFI1_P);
       blinkLED(10);
     } 
     if(x<1)
     {
       //something wrong
-      ESP.restart();
+      //ESP.restart();
+      //sleep instead of restarting
+      ESP.deepSleep(3000e6);  //need to wire from D0 to RST ---- * 1000 since using microseconds
     }
     Serial.println("\nConnected.");
   }
