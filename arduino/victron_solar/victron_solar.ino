@@ -1,6 +1,7 @@
 // record data from Victron Solar Controller
 // Sept 26 2020
 // Author: Will Allen
+//BOARD in use: NODEMCU V09 ESP-12 module
 //TODO #include <ESP8266WiFiMulti.h>
 #include <ESP8266WiFi.h>
 #include <WiFiClientSecure.h>
@@ -79,19 +80,15 @@ H21 397     -- Maximum power today, W
 */ 
 const char * TP_APPLE = "0NRCT2ZN3PNTMHUG";
 const unsigned long TP_CHANNEL = 140150;
-const int httpsPort = 443;
 const int SERIALRATE = 19200;
 //make sure you at least have a WIFI1 in your credentials file
 
-const unsigned int MAX_INPUT = 50;
-const char* server = "api.thingspeak.com";
 WiFiClient wifiClient;
 WiFiClientSecure sslClient;
-
 SoftwareSerial mySerial(RXPIN, TXPIN); // RX, TX
 
-bool resetWifiEachTime = true;
-int sleepPerLoop = 60*1000*60;  //1 hr   
+const int sleepPerLoop = 60*1000*60;  //1 hr  
+// UNTESTED const unsigned int microSecHour = 2.77778e-10; 
 
 void setup() 
 { 
@@ -102,44 +99,39 @@ void setup()
   pinMode(RXPIN, INPUT);
   pinMode(TXPIN, OUTPUT);
 	Serial.begin(SERIALRATE);
-  //sslClient.setInsecure();
-  //sslClient.setFingerprint(fingerprint);
   String setupMessage = "connected to second serial: " + String(RXPIN) + ", " + String(TXPIN);
   mySerial.println(setupMessage);
   consoleWrite(setupMessage);
-}
-
-void consoleWrite(String out)
-{
-  //do nothing for now, serial in use for reading!
-  Serial.println(out);
-  //mySerial.println(out);
 }
 
 void loop() 
 {
   //setup
   startWIFI();
-  ThingSpeak.begin(wifiClient);
   mySerial.begin(SERIALRATE);
-
-  //process
+  consoleWrite("Loop");
   //write out the data
   writeThingSpeak();
-  //delay(sleepPerLoop);
 
   //closeout
   WiFi.disconnect();
   mySerial.end();
   consoleWrite("CLOSEOUT: End of loop...sleeping ("+String(sleepPerLoop/60000)+"mins) ");
-  ESP.deepSleep(3000e6);  //need to wire from D0 to RST ---- * 1000 since using microseconds
+  ESP.deepSleep(3000e6);  //need to wire from D0 to RST ---- * 1000 since using microseconds - might require resistor?!
+  //TODO: UNTESTED ESP.deepSleep(2777e8);  //need to wire from D0 to RST ---- * 1000 since using microseconds  2.77778e-10
+  
   //deepsleep - https://randomnerdtutorials.com/esp8266-deep-sleep-with-arduino-ide/
   // thingspeak needs minimum 15 sec delay between updates  
 }
 
+void consoleWrite(String out)
+{
+  Serial.println(out);
+  //mySerial.println(out);
+}
+
 int process_data(String searchString, String rowFromPanel)
 {
-  //TODO - are longer searchstrings not working?
   int res = -1;
   int posOfVar = rowFromPanel.indexOf(searchString);
   if(posOfVar > -1)
@@ -160,7 +152,7 @@ int getBoxOfSerial(String searchString)
 {
   int returnValue = -1;
   blinkLED(-1); //turn LED on while processing off
-  for(int nLine = 0; nLine < 6000 && returnValue==-1; nLine++)  //give 1 min to find the data
+  for(int nLine = 0; nLine < 1000 && returnValue==-1; nLine++)  //give 1 min to find the data
   {
     if(mySerial.available()>0)
     {
@@ -180,14 +172,21 @@ void writeThingSpeak()
   V 13790     -- Battery voltage, mV  -working
   I -10     -- Battery current, mA    -working
   VPV 15950     -- Panel voltage, mV  -working
-  PPV 0     -- Panel power, W         -NOT
-  CS  5     -- Charge state, 0 to 9   -NOT
-  IL  0     -- Load current, mA       -NOT
-  H22 0       -- Yield yesterday, kWh -NOT
-  H23 0     -- Maximum power yesterday, W  -NOT
+  PPV 0     -- Panel power, W         -always 0?
+  CS  5     -- Charge state, 0 to 9   -working
+  IL  0     -- Load current, mA       -working
+  H22 0       -- Yield yesterday, kWh -working
+  H23 0     -- Maximum power yesterday, W  -working
+
+  TESTING
+  H19 0       -- Yield total, kWh
+  H20 0     -- Yield today, kWh
+  H21 397     -- Maximum power today, W
+  
   */
   consoleWrite("writeThingSpeak start");
-  String fields[] = {"V\t", "I\t", "VPV\t", "H19\t", "CS\t", "IL\t", "H22\t", "H23\t"}; //tab is separator character
+  ThingSpeak.begin(wifiClient);
+  String fields[] = {"V\t", "I\t", "VPV\t", "H19\t", "CS\t", "IL\t", "H20\t", "H21\t"}; // tab is field separator
   for(int x = 0; x< 8; x++)
   {
     consoleWrite("field:" +fields[x] );
