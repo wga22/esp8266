@@ -8,6 +8,7 @@ known issue: button sometimes takes multiple presses
 */
 
 //possible configurations
+// MakaPython_Audio - consider - https://www.makerfabs.com/wiki/index.php?title=MakaPython_Audio
 //#define SSD1306
 #define TTGO   //https://sites.google.com/site/jmaathuis/arduino/lilygo-ttgo-t-display-esp32
 
@@ -100,13 +101,19 @@ String stations[][2] = {
 int station_count = sizeof(stations) / sizeof(stations[0]);
 int station_index = 0;
 int saved_station_index = -1;
+int loopCount = 0;
 
 
 void setup()
 {
   Serial.begin(19200);
+  delay(2000);  //short pause for power stabilization
+  //WIFI
+  Serial.println("wifi setup");
+  setupWIFI();
+  connectWIFI();
 
-  //IO mode init
+  //IO setup
   //pinMode(Pin_vol_up, INPUT_PULLUP);
   //pinMode(Pin_vol_down, INPUT_PULLUP);
   //pinMode(Pin_mute, INPUT_PULLUP);
@@ -120,31 +127,19 @@ void setup()
     prevButton.setDebounceTime(5000);
   #endif
 
-    setupDisplay();
-    logoshow();
-    //connect to WiFi
-    setupWIFI();
-    /*
-   can remove once multiwifi tested
-    Serial.printf("Connecting to %s ", ssid);
-    WiFi.begin(ssid, password);
-    while (WiFi.status() != WL_CONNECTED)
-    {
-        delay(500);
-        Serial.print(".");
-    }
-    Serial.println(" CONNECTED");
-    lcd_text("Wifi CONNECT");
-     */
-     lcd_text("Wifi CONNECT");
-    //Audio(I2S)
-    audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
-    audio.setVolume(21); // 0...21
+  //display setup
+  setupDisplay();
+  logoshow();
+  lcd_text("Wifi CONNECT");
 
-    station_index = getFirstStation();
-    //first station
-    open_new_radio(musicURL(stations[station_index][0]));
-    lcd_text(stations[station_index][1]);
+  //audio setup
+  audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
+  audio.setVolume(21); // 0...21
+  
+  //MP3 setup
+  station_index = getFirstStation();
+  open_new_radio(musicURL(stations[station_index][0]));
+  lcd_text(stations[station_index][1]);
 }
 
 
@@ -154,8 +149,12 @@ void loop()
     #ifdef PIN_PREVIOUS
       prevButton.loop();
     #endif
-    //Serial.print(".");
     audio.loop();
+    if(loopCount++ > 1000)
+    {
+      connectWIFI();  //every so many cycles, verify wifi connection still alive, and reset if needed
+      loopCount=0;
+    }
 }
 
 void nextSong(Button2& btn)
@@ -249,40 +248,48 @@ void setupWIFI()
     ssid = WIFI1_S;
     password = WIFI1_P;
     WiFiMulti.addAP(ssid, password);
-    Serial.println(ssid);
+    Serial.print(ssid);
+    Serial.print(",");
   #endif
   #ifdef WIFI2_S
     ssid = WIFI2_S;
     password = WIFI2_P;
     WiFiMulti.addAP(ssid, password);
-    Serial.println(ssid);
+    Serial.print(ssid);
+    Serial.print(",");
   #endif
   #ifdef WIFI3_S
     ssid = WIFI3_S;
     password = WIFI3_P;
     WiFiMulti.addAP(ssid, password);
-    Serial.println(ssid);
+    Serial.print(ssid);
+    Serial.print(",");
   #endif
   #ifdef WIFI4_S
     ssid = WIFI4_S;
     password = WIFI4_P;
-    Serial.println(ssid);
+    Serial.print(ssid);
+    Serial.print(",");
     WiFiMulti.addAP(ssid, password);
   #endif
     #ifdef WIFI5_S
     ssid = WIFI5_S;
     password = WIFI5_P;
-    Serial.println(ssid);
+    Serial.print(ssid);
     WiFiMulti.addAP(ssid, password);
   #endif
+    Serial.println( " added");
+}
+
+void connectWIFI()
+{
   while(WiFiMulti.run() != WL_CONNECTED) 
   {
       Serial.print(".");
-      delay(1000);
+      delay(1000);  //long enough to test the connection
   }
-  Serial.println("connected");
+  Serial.println("connected");  
 }
-
 
 void open_new_radio(String station)
 {
@@ -299,6 +306,7 @@ void logoshow(void)
 void lcd_text(String text)
 {
 #ifdef TTGO
+  Serial.println("writing to screen");
   tft.setTextWrap(true);
   tft.fillScreen(TFT_BLACK);
   tft.setCursor(0, 30);
@@ -319,7 +327,6 @@ void lcd_text(String text)
 #endif
 
 }
-
 
 void setupDisplay()
 {
