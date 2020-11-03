@@ -1,4 +1,4 @@
-// Plot DTH11 data on thingspeak.com using an ESP8266 
+ // Plot DTH11 data on thingspeak.com using an ESP8266 
 // July 11 2015
 // Author: Will Allen
 // www.arduinesp.com 
@@ -6,67 +6,80 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266WiFiMulti.h>
 #include <WiFiClientSecure.h>
-#include <wificredentials.h>
-#define DHTPIN 2 // what pin we're connected to
+#include <wifi_credentials.h>
+#include "ThingSpeak.h"
+#define DHTPIN D4
  
 // replace with your channel's thingspeak API key, 
 // http://api.wunderground.com/api/13db05c35598dd93/conditions/q/Australia/Sydney.json
+
+const char * TP_APPLE = "NK6HEWTA7BC9ANLD";
+const unsigned long TP_CHANNEL = 39741;
+
+
 String apiKey = "NK6HEWTA7BC9ANLD";
 String wundergroundKey = "13db05c35598dd93";
-//make sure you at least have a WIFI1 in your credentials file
-
 const int buffer=300;
 const char* server = "api.thingspeak.com";
 const char fingerprint[] PROGMEM = "fingerprint";
 const int httpsPort = 443;
+const int SERIALRATE = 19200;
 
 WiFiClientSecure sslClient;
+WiFiClient wifiClient;
 ESP8266WiFiMulti WiFiMulti;
 
 bool resetWifiEachTime = true;
-bool fTesting =false;     //turns off need for DHT11
+//bool fTesting =false;     //turns off need for DHT11
 
-DHT dht(DHTPIN, DHT11,20);
 int sleepPerLoop = 60*1000*60;  //1 hr   
  
 void setup() 
 { 
-	WiFi.mode(WIFI_STA);
-	Serial.begin(115200);
-	Serial.println("waiting for power to stabilize");
-	delay(1000*10);  //10 secs
-  //sslClient.setFingerprint(fingerprint);
-  sslClient.setInsecure();
-	dht.begin();
-  setupWIFI();
 }
 
 void loop() 
 {
-  startWIFI();
-  
+  //setup, assume deepsleep requires reset, so "setup" also run each time, but be sure.
+  pinMode(D0, WAKEUP_PULLUP);
+  pinMode(LED_BUILTIN, OUTPUT);
+  WiFi.mode(WIFI_STA);
+  Serial.begin(SERIALRATE);
+  Serial.println("waiting for power to stabilize");
+  blinkLED(-1);
+  delay(1000*3);  //3 secs
+  //sslClient.setFingerprint(fingerprint);
+  sslClient.setInsecure();
+  blinkLED(-1);
+  setupWIFI();
+
+  startWIFI();  
   //get temp data
+  DHT dht(DHTPIN, DHT11,20);
+  dht.begin();
   float h = dht.readHumidity();
   float t = dht.readTemperature(true);
+  Serial.print(t);
+  Serial.println( " temp from DHT11");
   if (isnan(h) || isnan(t)) 
   {
     Serial.println("Failed to read from DHT sensor!");
+    ESP.deepSleep(3000e6);  //need to wire from D0 to RST ---- * 1000 since using microseconds
   }
-
   //get local weather data
   Serial.println("get internet temp");
+  blinkLED(3);
   float viennaTemp = getInternetTemp();
-
+  delay(1000);
   //write out the data
   Serial.println("writeThingSpeak");
+  blinkLED(2);
   writeThingSpeak(t,h, viennaTemp);
   WiFi.disconnect();
   Serial.print("End of loop...sleeping (mins) ");
-  Serial.println(sleepPerLoop/60000);    
-  delay(sleepPerLoop);
-  // thingspeak needs minimum 15 sec delay between updates  
+  //Serial.println(sleepPerLoop/60000);    
+  ESP.deepSleep(3000e6);  //need to wire from D0 to RST ---- * 1000 since using microseconds
 }
-
 
 void setupWIFI()
 {
@@ -108,10 +121,12 @@ void setupWIFI()
 void startWIFI()
 {
   WiFi.mode(WIFI_STA);
+  blinkLED(5);
   while(WiFiMulti.run() != WL_CONNECTED) 
   {
       Serial.print(".");
-      delay(1000);
+      //delay(1000);
+      blinkLED(3);
   }
   Serial.println("connected");
 }
@@ -171,46 +186,53 @@ float getInternetTemp()
 
 void writeThingSpeak(float temp, float humid, float vTemp )
 {
-   if (!fTesting && sslClient.connect(server,httpsPort)) 
-  {  //   "184.106.153.149" or api.thingspeak.com
-    String postStr = apiKey;
-           postStr +="&field1=";
-           postStr += String(temp);
-           postStr +="&field2=";
-           postStr += String(humid);
-    if(vTemp!=-1)
-    {
-      Serial.println("vienna temp there.");
-      postStr += "&field3=";
-      postStr += String(vTemp);
-    }
-    postStr += "\r\n\r\n";
- 
-     sslClient.print("POST /update HTTP/1.1\n"); 
-     sslClient.print("Host: api.thingspeak.com\n"); 
-     sslClient.print("Connection: close\n"); 
-     sslClient.print("X-THINGSPEAKAPIKEY: "+apiKey+"\n"); 
-     sslClient.print("Content-Type: application/x-www-form-urlencoded\n"); 
-     sslClient.print("Content-Length: "); 
-     sslClient.print(postStr.length()); 
-     sslClient.print("\n\n"); 
-     sslClient.print(postStr);
-
-     Serial.println(postStr);
-           
- 
-     Serial.print("Temperature: ");
-     Serial.print(humid);
-     Serial.print(" degrees fahrenheit Humidity: "); 
-     Serial.print(humid);
-     Serial.print(" internet temp: "); 
-     Serial.print(vTemp);
-     Serial.println("% send to Thingspeak");
-  }
-  else
+  Serial.println("writeThingSpeak");
+  ThingSpeak.begin(wifiClient);
+  ThingSpeak.setField(1, temp);
+  ThingSpeak.setField(2, humid);
+  if(vTemp!=-1)
   {
-    Serial.print("didnt connect to ");
-    Serial.println(server);
+    ThingSpeak.setField(3, vTemp);
   }
-  sslClient.stop();
+  int rc = ThingSpeak.writeFields(TP_CHANNEL,TP_APPLE);
+  Serial.println( "TP return code: " +  String(rc));
+  
+  
+  Serial.print("Temperature: ");
+  Serial.println(temp);
+  Serial.print(" degrees fahrenheit Humidity: "); 
+  Serial.println(humid);
+  Serial.print(" internet temp: "); 
+  Serial.println(vTemp);
+}
+
+void blinkLED(int times)
+{
+  static int LEDON = 0;
+  if(times >0)
+  {
+    for(int x=0; x < times; x++)
+    {
+      digitalWrite(LED_BUILTIN, LOW);   // turn the LED on 
+      LEDON = 1;
+      Serial.print(".");
+      delay(222);
+      digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on 
+      LEDON = 0;
+      delay(222);
+    }
+  }
+  else  //-1 means to toggle
+  {
+    if(LEDON==1)
+    {
+      LEDON=0;
+      digitalWrite(LED_BUILTIN, HIGH);
+    }
+    else
+    {
+       LEDON=1;
+       digitalWrite(LED_BUILTIN, LOW);
+    }
+  }
 }
