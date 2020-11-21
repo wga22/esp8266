@@ -1,6 +1,3 @@
-<<<<<<< HEAD
-#include <wifi_credentials.h>
-=======
 /*
 MP3 Iheart streamer
 Special thanks:  https://github.com/schreibfaul1/ESP32-audioI2S
@@ -14,23 +11,13 @@ known issue: button sometimes takes multiple presses
 // MakaPython_Audio - consider - https://www.makerfabs.com/wiki/index.php?title=MakaPython_Audio
 //#define SSD1306
 #define TTGO   //https://sites.google.com/site/jmaathuis/arduino/lilygo-ttgo-t-display-esp32
-
-
 #include <wifi_credentials.h>
 #include "Button2.h";
->>>>>>> 73c1f55ccfb5194246e0168b978c6831d9f8d8b7
-
 #include "Arduino.h"
 #include "Audio.h"
 #include "SPIFFS.h"
 #include <Adafruit_GFX.h>
-<<<<<<< HEAD
-#include <Adafruit_SSD1306.h>
-//#include "wificredentials.h"
-=======
->>>>>>> 73c1f55ccfb5194246e0168b978c6831d9f8d8b7
 #include <WiFiMulti.h>
-
 
 #ifdef SSD1306
 //SSD1306
@@ -85,28 +72,6 @@ uint run_time = 0;
 uint button_time = 0;
 
 String stations[][2] = {
-<<<<<<< HEAD
-  {"zc8143","The Breeze"},  //breeze
-  {"zc3949","Pride\nRadio"}, //pride 
-  {"zc4422","Hits"},  //hits
-  {"zc4409", "80's thru\nToday"},  //80s to today
-  {"zc8478","2010's"},  //2010
-  {"zc6850","2000's"},  //2000s
-  {"zc6834","90's"},  //90s
-  {"zc5060","80's"},  //80s
-  {"zc7078","Classic\nRock"},  //classic rock
-  {"zc6788","Reggae"}, //Reggae
-  {"zc6137","Christmas"}, //Christmas
-  {"zc6221","Beach"}, 
-  {"zc6878","Vinyl\nClassic\nRock"}, 
-  {"zc4717","Real Oldies"}, 
-  {"zc4439","Cool Oldies"},
-  {"zc6377","Classical"}, 
-  {"zc6137","Jazz"}, 
-  {"zc4719","R&B"}, 
-  {"zc6148","Hawaii"}, 
-  {"zc6437","90s Alt"}
-=======
   {"zc8143","The Breeze"},
   {"zc4439","Cool Oldies"},
   {"zc7078","Classic\nRock"},
@@ -127,7 +92,6 @@ String stations[][2] = {
   {"zc6137","Jazz"}, 
   {"zc6377","Classical"}, 
   {"zc6137","Christmas"}
->>>>>>> 73c1f55ccfb5194246e0168b978c6831d9f8d8b7
 };
 
 int station_count = sizeof(stations) / sizeof(stations[0]);
