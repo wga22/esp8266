@@ -12,7 +12,7 @@ known issue: button sometimes takes multiple presses
 //#define SSD1306
 #define TTGO   //https://sites.google.com/site/jmaathuis/arduino/lilygo-ttgo-t-display-esp32
 #include <wifi_credentials.h>
-#include "Button2.h";
+#include "Button2.h";   //TODO: why working with button2 1.3 and not 1.4?
 #include "Arduino.h"
 #include "Audio.h"
 #include "SPIFFS.h"
@@ -45,7 +45,7 @@ known issue: button sometimes takes multiple presses
   #define I2S_LRC 27
   #define I2S_DOUT 26
   #define I2S_BCLK 25 
-  #define PIN_PREVIOUS 35
+  #define PIN_PREVIOUS 35 
   #define PIN_NEXT 0
 
   TFT_eSPI tft = TFT_eSPI();  // Invoke library, pins defined in User_Setup.h
@@ -155,7 +155,8 @@ void loop()
 
 void nextSong(Button2& btn)
 {
-  Serial.println("next");
+  Serial.println("next clicked");
+  connectWIFI();  //clicking button forces network reset
   station_index++;
   if(station_index >= station_count) //at the end
   {
@@ -167,6 +168,7 @@ void nextSong(Button2& btn)
 void prevSong(Button2& btn)
 {
   Serial.println("prev clicked");
+  connectWIFI();  //clicking button forces network reset
   station_index--;
   if (station_index < 0 )//circle back through beginning
   {
