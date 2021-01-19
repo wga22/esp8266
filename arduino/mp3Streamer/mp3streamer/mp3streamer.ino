@@ -146,11 +146,13 @@ void loop()
       prevButton.loop();
     #endif
     audio.loop();
+    /*
     if(loopCount++ > 1000)
     {
       connectWIFI();  //every so many cycles, verify wifi connection still alive, and reset if needed
       loopCount=0;
     }
+    */
 }
 
 void nextSong(Button2& btn)
