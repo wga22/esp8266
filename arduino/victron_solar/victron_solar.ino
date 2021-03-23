@@ -98,7 +98,7 @@ void setup()
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(RXPIN, INPUT);
   pinMode(TXPIN, OUTPUT);
-	Serial.begin(SERIALRATE);
+  Serial.begin(SERIALRATE);        
   String setupMessage = "connected to second serial: " + String(RXPIN) + ", " + String(TXPIN);
   mySerial.println(setupMessage);
   consoleWrite(setupMessage);
