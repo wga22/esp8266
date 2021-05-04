@@ -39,6 +39,8 @@ known issue: button sometimes takes multiple presses
 
 
 #ifdef TTGO
+  //User_Setup.h ST7789_DRIVER
+  //User_Setup_Select.h Setup25_TTGO_T_Display.h
   #include <TFT_eSPI.h> // Graphics and font library for ST7735 driver chip
   #include <SPI.h>
   //Digital I/O used  //Makerfabs Audio V2.0
@@ -56,6 +58,7 @@ known issue: button sometimes takes multiple presses
 //const int Pin_mute = 35;
 
 //const int Pin_pause = 33;
+//NOTE: all of these require redirect and https
 const String ihrls = "https://stream.revma.ihrhls.com/";
 const String station_file = "/station.txt";
 
@@ -70,6 +73,7 @@ int volume = 21;
 int mute_volume = 0;
 uint run_time = 0;
 uint button_time = 0;
+
 
 String stations[][2] = {
   {"zc8143","The Breeze"},
@@ -116,11 +120,11 @@ void setup()
   //pinMode(Pin_previous, INPUT_PULLUP);
   //pinMode(Pin_pause, INPUT_PULLUP);
   //pinMode(PIN_NEXT, INPUT_PULLUP);
-  nextButton.setClickHandler(nextSong);
-  nextButton.setDebounceTime(5000);
+  nextButton.setReleasedHandler(nextSong);
+  //nextButton.setDebounceTime(5000);
   #ifdef PIN_PREVIOUS
-    prevButton.setClickHandler(prevSong);
-    prevButton.setDebounceTime(5000);
+    prevButton.setReleasedHandler(prevSong);
+    //prevButton.setDebounceTime(5000);
   #endif
 
   //display setup
@@ -135,6 +139,8 @@ void setup()
   //MP3 setup
   station_index = getFirstStation();
   open_new_radio(musicURL(stations[station_index][0]));
+  //TEST RADIO open_new_radio("http://198.58.98.83:8258/stream");
+  
   lcd_text(stations[station_index][1]);
 }
 
@@ -293,8 +299,10 @@ void connectWIFI()
 
 void open_new_radio(String station)
 {
-    audio.connecttohost(station);
-    Serial.println("**********start a new radio************");
+    audio.connecttohost(station.c_str());
+    //audio.connecttohost(station);
+    Serial.print("**start a new radio : ");
+    Serial.println(station);
 }
 
 void logoshow(void)
@@ -305,8 +313,9 @@ void logoshow(void)
 
 void lcd_text(String text)
 {
+  Serial.print("output: ");
+  Serial.println(text);
 #ifdef TTGO
-  Serial.println("writing to screen");
   tft.setTextWrap(true);
   tft.fillScreen(TFT_BLACK);
   tft.setCursor(0, 30);
