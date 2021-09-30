@@ -5,12 +5,21 @@ Intial: Summer 2020
 Author: Will / wga22@yahoo.com
 
 known issue: button sometimes takes multiple presses
+
+boards: TTGO LoRa32-OLED V1
+
+----Need to make following changes to Audio.h-----
+#include "HTTPSRedirect.h"  //ALLEN
+
+    //ALLEN WiFiClientSecure  clientsecure; // @suppress("Abstract class cannot be instantiated")
+  HTTPSRedirect  clientsecure; //ALLEN
+
 */
 
 //possible configurations
 // MakaPython_Audio - consider - https://www.makerfabs.com/wiki/index.php?title=MakaPython_Audio
 //#define SSD1306
-#define TTGO   //https://sites.google.com/site/jmaathuis/arduino/lilygo-ttgo-t-display-esp32
+#define TTGO   //https://sites.google.com/site/jmaathuis/arduino/lilygo-ttgo-t-display-esp32  TTGO LoRa32-OLED V1
 #include <wifi_credentials.h>
 #include "Button2.h";   //TODO: why working with button2 1.3 and not 1.4?
 #include "Arduino.h"
