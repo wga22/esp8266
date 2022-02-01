@@ -15,6 +15,9 @@
 /*
  * thingspeak: https://thingspeak.com/channels/140150
  *docs: https://beta.ivc.no/wiki/index.php/Victron_VE_Direct_DIY_Cable
+ *  BOARD: ESP8266 NODEMCU
+ * changes:
+ * -Feb 2022 - updated to support max values, and set sleep to 30 mins (1800 secs) from 3000 secs
 PID 0xA043      -- Product ID for BlueSolar MPPT 100/15
 FW  119     -- Firmware version of controller, v1.19
 SER#  HQXXXXXXXXX   -- Serial number
@@ -87,7 +90,7 @@ WiFiClient wifiClient;
 WiFiClientSecure sslClient;
 SoftwareSerial mySerial(RXPIN, TXPIN); // RX, TX
 
-const int sleepPerLoop = 60*1000*60;  //1 hr  
+const int sleepMicrosPerLoop = 1800e6;  //30 mins  
 // UNTESTED const unsigned int microSecHour = 2.77778e-10; 
 
 void setup() 
@@ -116,7 +119,7 @@ void loop()
   //closeout
   WiFi.disconnect();
   mySerial.end();
-  consoleWrite("CLOSEOUT: End of loop...sleeping ("+String(sleepPerLoop/60000)+"mins) ");
+  consoleWrite("CLOSEOUT: End of loop...sleeping ("+String(sleepMicrosPerLoop/60e6)+"mins) ");
   ESP.deepSleep(3000e6);  //need to wire from D0 to RST ---- * 1000 since using microseconds - might require resistor?!
   //TODO: UNTESTED ESP.deepSleep(2777e8);  //need to wire from D0 to RST ---- * 1000 since using microseconds  2.77778e-10
   
@@ -130,6 +133,7 @@ void consoleWrite(String out)
   //mySerial.println(out);
 }
 
+//TODO: reread the data when something out of range comes back
 int process_data(String searchString, String rowFromPanel)
 {
   int res = -1;
@@ -148,7 +152,7 @@ int process_data(String searchString, String rowFromPanel)
   return res;
 }
 
-int getBoxOfSerial(String searchString)
+int getBoxOfSerial(String searchString, int maxSerialVal)
 {
   int returnValue = -1;
   blinkLED(-1); //turn LED on while processing off
@@ -158,6 +162,11 @@ int getBoxOfSerial(String searchString)
     {
       String inputLine = mySerial.readStringUntil('\n');
       returnValue = process_data(searchString, inputLine);
+    }
+    //if value out of range, try again by resetting returnvalue=-1
+    if(maxSerialVal != -1 && returnValue > maxSerialVal)
+    {
+      returnValue = -1;
     }
     delay(60);
   }//for maxtries
@@ -169,28 +178,29 @@ void writeThingSpeak()
 {
   /*
   recording:
-  V 13790     -- Battery voltage, mV  -working
-  I -10     -- Battery current, mA    -working
-  VPV 15950     -- Panel voltage, mV  -working
-  PPV 0     -- Panel power, W         -always 0?
-  CS  5     -- Charge state, 0 to 9   -working
-  IL  0     -- Load current, mA       -working
-  H22 0       -- Yield yesterday, kWh -working
-  H23 0     -- Maximum power yesterday, W  -working
+  V 13790     -- Battery voltage, mV  -field1[0] validMAX: <40000
+  I -10     -- Battery current, mA    -field2[1] validMAX: <40000
+  VPV 15950     -- Panel voltage, mV  -field3[2] validMAX: <60000
+  H19 0       -- Yield total, kWh     -field4[3] validMAX: no max
+  CS  5     -- Charge state, 0 to 9   -field5[4] validMAX: <10
+  IL  0     -- Load current, mA       -field6[5] validMAX: <60000
+  H20 0     -- Yield today, kWh       -field7[6] validMAX: <2000?
+  H21 397   -- Max power today (W)    -field8[7] validMAX: <10000?
 
   TESTING
-  H19 0       -- Yield total, kWh
-  H20 0     -- Yield today, kWh
-  H21 397     -- Maximum power today, W
+  PPV 0     -- Panel power, W         -field0 validMAX:   -always 0?  
+  H22 0       -- Yield yesterday, kWh -field0 validMAX:
+  H23 0     -- Maximum power yesterday, W  -field0 validMAX:
   
   */
   consoleWrite("writeThingSpeak start");
   ThingSpeak.begin(wifiClient);
-  String fields[] = {"V\t", "I\t", "VPV\t", "H19\t", "CS\t", "IL\t", "H20\t", "H21\t"}; // tab is field separator
+  String fields[8] = {"V\t", "I\t", "VPV\t", "H19\t", "CS\t", "IL\t", "H20\t", "H21\t"}; // tab is field separator
+  int maxVals[8] = {60000, 60000, 60000, -1, 11, 60000,10000,10000};
   for(int x = 0; x< 8; x++)
   {
     consoleWrite("field:" +fields[x] );
-    int fieldVal = getBoxOfSerial(fields[x]);
+    int fieldVal = getBoxOfSerial(fields[x], maxVals[x]);
     if(fieldVal!=-1)
     {
       ThingSpeak.setField((x+1), fieldVal);
@@ -250,7 +260,8 @@ void startWIFI()
       //something wrong
       //ESP.restart();
       //sleep instead of restarting
-      ESP.deepSleep(3000e6);  //need to wire from D0 to RST ---- * 1000 since using microseconds
+      //ESP.deepSleep(3000e6);  //need to wire from D0 to RST ---- * 1000 since using microseconds
+      ESP.deepSleep(sleepMicrosPerLoop);  //need to wire from D0 to RST ---- * 1000 since using microseconds
     }
     Serial.println("\nConnected.");
   }
