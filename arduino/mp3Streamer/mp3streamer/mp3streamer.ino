@@ -4,15 +4,19 @@ Special thanks:  https://github.com/schreibfaul1/ESP32-audioI2S
 Intial: Summer 2020
 Author: Will / wga22@yahoo.com
 
-known issue: button sometimes takes multiple presses
-boards: TTGO LoRa32-OLED V1
+known issues: 
+ -button sometimes takes multiple presses
+ -some stations not playing, inconsistently
+
+supported boards (screen): 
+1) TTGO LoRa32-OLED V1 (define TTGO)
+2) XXXX (SSD1306)
+
 */
 
-//possible configurations
-// MakaPython_Audio - consider - https://www.makerfabs.com/wiki/index.php?title=MakaPython_Audio
+//select only 1 of SSD1306 or TTGO
 //#define SSD1306
-//for TTGO updates reminder to configure User_Setup_Select
-#define TTGO   //https://sites.google.com/site/jmaathuis/arduino/lilygo-ttgo-t-display-esp32  TTGO LoRa32-OLED V1
+#define TTGO   //https://sites.google.com/site/jmaathuis/arduino/lilygo-ttgo-t-display-esp32  TTGO LoRa32-OLED V1  reminder to configure User_Setup_Select
 #include <wifi_credentials.h>
 #include "Button2.h";
 #include "Arduino.h"
@@ -21,7 +25,7 @@ boards: TTGO LoRa32-OLED V1
 #include <Adafruit_GFX.h>
 #include <WiFiMulti.h>
 
-#define VERSION 202202
+#define VERSION __DATE__
 
 #ifdef SSD1306
 //SSD1306
@@ -36,7 +40,7 @@ boards: TTGO LoRa32-OLED V1
   #define SCREEN_WIDTH 128 // OLED display width, in pixels
   #define SCREEN_HEIGHT 64 // OLED display height, in pixels
   #define OLED_RESET -1    // Reset pin # (or -1 if sharing Arduino reset pin)
-//const int Pin_previous = 15;
+  //const int Pin_previous = 15;
   #include <Adafruit_SSD1306.h>
   Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 #endif
