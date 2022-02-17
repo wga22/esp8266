@@ -5,28 +5,23 @@ Intial: Summer 2020
 Author: Will / wga22@yahoo.com
 
 known issue: button sometimes takes multiple presses
-
 boards: TTGO LoRa32-OLED V1
-
-----Need to make following changes to Audio.h-----
-#include "HTTPSRedirect.h"  //ALLEN
-
-    //ALLEN WiFiClientSecure  clientsecure; // @suppress("Abstract class cannot be instantiated")
-  HTTPSRedirect  clientsecure; //ALLEN
-
 */
 
 //possible configurations
 // MakaPython_Audio - consider - https://www.makerfabs.com/wiki/index.php?title=MakaPython_Audio
 //#define SSD1306
+//for TTGO updates reminder to configure User_Setup_Select
 #define TTGO   //https://sites.google.com/site/jmaathuis/arduino/lilygo-ttgo-t-display-esp32  TTGO LoRa32-OLED V1
 #include <wifi_credentials.h>
-#include "Button2.h";   //TODO: why working with button2 1.3 and not 1.4?
+#include "Button2.h";
 #include "Arduino.h"
 #include "Audio.h"
 #include "SPIFFS.h"
 #include <Adafruit_GFX.h>
 #include <WiFiMulti.h>
+
+#define VERSION 202202
 
 #ifdef SSD1306
 //SSD1306
@@ -70,6 +65,7 @@ boards: TTGO LoRa32-OLED V1
 //NOTE: all of these require redirect and https
 const String ihrls = "https://stream.revma.ihrhls.com/";
 const String station_file = "/station.txt";
+const int MAXVOLUME = 21;
 
 Audio audio;
 WiFiMulti WiFiMulti;
@@ -78,7 +74,6 @@ Button2 nextButton = Button2(PIN_NEXT);
   Button2 prevButton = Button2(PIN_PREVIOUS);
 #endif
 
-int volume = 21;
 int mute_volume = 0;
 uint run_time = 0;
 uint button_time = 0;
@@ -91,11 +86,13 @@ String stations[][2] = {
   {"zc6878","Vinyl\nClassic\nRock"}, 
   {"zc3949","Pride\nRadio"},
   {"zc4409", "80's thru\nToday"},
+  {"zc6951","Yacht"},
   {"zc4422","Hits"},
   {"zc8478","2010's"},
   {"zc6850","2000's"},
   {"zc6834","90's"},
   {"zc5060","80's"},
+  {"zc6410","Rock"},
   {"zc6788","Reggae"},
   {"zc6221","Beach&Pool"}, 
   {"zc4717","Real Oldies"}, 
@@ -139,11 +136,11 @@ void setup()
   //display setup
   setupDisplay();
   logoshow();
-  lcd_text("Wifi CONNECT");
+  //lcd_text("Wifi CONNECT");
 
   //audio setup
   audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
-  audio.setVolume(21); // 0...21
+  audio.setVolume(MAXVOLUME); // 0...21
   
   //MP3 setup
   station_index = getFirstStation();
@@ -197,8 +194,8 @@ void prevSong(Button2& btn)
 void changeStation()
 {
   open_new_radio(musicURL(stations[station_index][0]));
-  lcd_text(stations[station_index][1]);
   setStation(station_index);
+  lcd_text(stations[station_index][1]);
 }
 
 String musicURL(String station_id)
@@ -316,8 +313,9 @@ void open_new_radio(String station)
 
 void logoshow(void)
 {
-    lcd_text("Will Radio\nPress\nButton\nto go next");
-    delay(100);
+    String title = "Will Radio\n" + String(VERSION);
+    lcd_text(title);
+    delay(2500);
 }
 
 void lcd_text(String text)
