@@ -1,193 +1,139 @@
 // sailing autopilot
-// March 2021
+// March 2022
 // Author: Will Allen
-//BOARD in use: NODEMCU V09 ESP-12 module
+//BOARD in use: Aduino Uno
+//NOTE: PWM must be plugged in!
 
-#include <wifi_credentials.h>
+//BEGIN Compass
+#include <QMC5883LCompass.h>
 
-// Reference the I2C Library
-#include <Wire.h>
-// Reference the HMC5883L Compass Library
-#include <HMC5883L.h>
+//BEGIN encoder/motor
+#include <util/atomic.h> // For the ATOMIC_BLOCK macro
 
-#define COMP_RX D1 // receive -for esp8266 there are many pins that cannot be used.
-#define COMP_TX D2 //trans
-#define SERIALRATE 9600
-#define HMC5883L_Address 0xD
+#define ENCA 2 // YELLOW
+#define ENCB 3 // WHITE
+#define PWM 5
+#define IN2 6
+#define IN1 7
 
-/*
+const int FORWARD = 1;
+const int BACKWARD = -1;
+const int STOP = 0;
+const int MAX_ADJUSTMENTS = 10; //starts at halfway point
+int clicks = MAX_ADJUSTMENTS/2;
+//encoder positions
+volatile int posi = 0; // specify posi as volatile: https://www.arduino.cc/reference/en/language/variables/variable-scope-qualifiers/volatile/
+int pos = 0; 
 
---compass
-http://www.esp8266learning.com/wemos-hmc5883l-example.php
-
---encoder
-
---motor controller
-
---FUTURE:
-OTA updates
-
-#include <ESP8266WiFi.h>
-#include <WiFiClientSecure.h>
-  //WiFi.mode(WIFI_STA);
-  startWIFI();
-
-
-*/ 
-
-
-#include <Wire.h>
-#include <HMC5883L.h>
-
-HMC5883L compass;
+//BEGIN Compass
+QMC5883LCompass compass;
+int targetHeading;
+const int HEADING_BUFFER = 10;
 
 void setup()
 {
   Serial.begin(9600);
 
-  // Initialize HMC5883L
-  Serial.println("Initialize HMC5883L");
-  getWire();
-  while (!compass.begin())
-  {
-    Serial.println("Could not find a valid HMC5883L sensor, check wiring!");
-    delay(500);
-  }
-  
-  // Set measurement range
-  // +/- 0.88 Ga: HMC5883L_RANGE_0_88GA
-  // +/- 1.30 Ga: HMC5883L_RANGE_1_3GA (default)
-  // +/- 1.90 Ga: HMC5883L_RANGE_1_9GA
-  // +/- 2.50 Ga: HMC5883L_RANGE_2_5GA
-  // +/- 4.00 Ga: HMC5883L_RANGE_4GA
-  // +/- 4.70 Ga: HMC5883L_RANGE_4_7GA
-  // +/- 5.60 Ga: HMC5883L_RANGE_5_6GA
-  // +/- 8.10 Ga: HMC5883L_RANGE_8_1GA
-  compass.setRange(HMC5883L_RANGE_1_3GA);
+  //BEGIN Compass
+  compass.init();
+  compass.read();
+  targetHeading = compass.getAzimuth();
 
-  // Set measurement mode
-  // Idle mode:              HMC5883L_IDLE
-  // Single-Measurement:     HMC5883L_SINGLE
-  // Continuous-Measurement: HMC5883L_CONTINOUS (default)
-  compass.setMeasurementMode(HMC5883L_CONTINOUS);
- 
-  // Set data rate
-  //  0.75Hz: HMC5883L_DATARATE_0_75HZ
-  //  1.50Hz: HMC5883L_DATARATE_1_5HZ
-  //  3.00Hz: HMC5883L_DATARATE_3HZ
-  //  7.50Hz: HMC5883L_DATARATE_7_50HZ
-  // 15.00Hz: HMC5883L_DATARATE_15HZ (default)
-  // 30.00Hz: HMC5883L_DATARATE_30HZ
-  // 75.00Hz: HMC5883L_DATARATE_75HZ
-  compass.setDataRate(HMC5883L_DATARATE_15HZ);
-
-  // Set number of samples averaged
-  // 1 sample:  HMC5883L_SAMPLES_1 (default)
-  // 2 samples: HMC5883L_SAMPLES_2
-  // 4 samples: HMC5883L_SAMPLES_4
-  // 8 samples: HMC5883L_SAMPLES_8
-  compass.setSamples(HMC5883L_SAMPLES_1);
-
-  // Check settings
-  checkSettings();
+  //BEGIN encoder/motor
+  Serial.begin(9600);
+  pinMode(ENCA,INPUT);
+  pinMode(ENCB,INPUT);
+  attachInterrupt(digitalPinToInterrupt(ENCA),readEncoder,RISING);
+  ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {    pos = posi;  }
+  pinMode(PWM,OUTPUT);
+  pinMode(IN1,OUTPUT);
+  pinMode(IN2,OUTPUT);
+  setMotorByDuration(STOP, 100); //make sure motor starting in stopped position
+  targetHeading = compass.getAzimuth();
 }
 
-void getWire()
-{
-    Wire.begin();
-    int count=0;
-  for (byte i = 8; i < 120; i++)
-  {
-    Wire.beginTransmission(i);
-    if (Wire.endTransmission() == 0)
-      {
-      Serial.print("Found I2C Device: ");
-      Serial.print(" (0x");
-      Serial.print(i, HEX);
-      Serial.println(")");
-      count++;
-      delay(1);
-      }
-  }
-  Serial.print("\r\n");
-  Serial.println("Finish I2C scanner");
-  Serial.print("Found ");
-  Serial.print(count++, HEX);
-  Serial.println(" Device(s).");
-}
-
-void checkSettings()
-{
-  Serial.print("Selected range: ");
-  
-  switch (compass.getRange())
-  {
-    case HMC5883L_RANGE_0_88GA: Serial.println("0.88 Ga"); break;
-    case HMC5883L_RANGE_1_3GA:  Serial.println("1.3 Ga"); break;
-    case HMC5883L_RANGE_1_9GA:  Serial.println("1.9 Ga"); break;
-    case HMC5883L_RANGE_2_5GA:  Serial.println("2.5 Ga"); break;
-    case HMC5883L_RANGE_4GA:    Serial.println("4 Ga"); break;
-    case HMC5883L_RANGE_4_7GA:  Serial.println("4.7 Ga"); break;
-    case HMC5883L_RANGE_5_6GA:  Serial.println("5.6 Ga"); break;
-    case HMC5883L_RANGE_8_1GA:  Serial.println("8.1 Ga"); break;
-    default: Serial.println("Bad range!");
-  }
-  
-  Serial.print("Selected Measurement Mode: ");
-  switch (compass.getMeasurementMode())
-  {  
-    case HMC5883L_IDLE: Serial.println("Idle mode"); break;
-    case HMC5883L_SINGLE:  Serial.println("Single-Measurement"); break;
-    case HMC5883L_CONTINOUS:  Serial.println("Continuous-Measurement"); break;
-    default: Serial.println("Bad mode!");
-  }
-
-  Serial.print("Selected Data Rate: ");
-  switch (compass.getDataRate())
-  {  
-    case HMC5883L_DATARATE_0_75_HZ: Serial.println("0.75 Hz"); break;
-    case HMC5883L_DATARATE_1_5HZ:  Serial.println("1.5 Hz"); break;
-    case HMC5883L_DATARATE_3HZ:  Serial.println("3 Hz"); break;
-    case HMC5883L_DATARATE_7_5HZ: Serial.println("7.5 Hz"); break;
-    case HMC5883L_DATARATE_15HZ:  Serial.println("15 Hz"); break;
-    case HMC5883L_DATARATE_30HZ: Serial.println("30 Hz"); break;
-    case HMC5883L_DATARATE_75HZ:  Serial.println("75 Hz"); break;
-    default: Serial.println("Bad data rate!");
-  }
-  
-  Serial.print("Selected number of samples: ");
-  switch (compass.getSamples())
-  {  
-    case HMC5883L_SAMPLES_1: Serial.println("1"); break;
-    case HMC5883L_SAMPLES_2: Serial.println("2"); break;
-    case HMC5883L_SAMPLES_4: Serial.println("4"); break;
-    case HMC5883L_SAMPLES_8: Serial.println("8"); break;
-    default: Serial.println("Bad number of samples!");
-  }
-
-}
 
 void loop()
 {
-  Vector raw = compass.readRaw();
-  Vector norm = compass.readNormalize();
-  /*
-  Serial.print(" Xraw = ");
-  Serial.print(raw.XAxis);
-  Serial.print(" Yraw = ");
-  Serial.print(raw.YAxis);
-  Serial.print(" Zraw = ");
-  Serial.print(raw.ZAxis);
-  Serial.print(" Xnorm = ");
-  Serial.print(norm.XAxis);
-  Serial.print(" Ynorm = ");
-  Serial.print(norm.YAxis);
-  Serial.print(" ZNorm = ");
-  Serial.print(norm.ZAxis);
-  */
-  //MagnetometerScaled scaled = compass.ReadScaledAxis();
-  float heading = atan2(raw.XAxis, raw.YAxis);
-  Serial.println(heading);  
-
-  delay(100);
+  //BEGIN Compass
+  compass.read();
+  int heading = compass.getAzimuth();
+  logValue("Heading", heading);
+  logValue("Target Heading", targetHeading);
+ //BEGIN encoder/motor
+ //TODO: handle 360 / 0
+ //TODO handle MAX and MIN positions
+ if(targetHeading > heading + HEADING_BUFFER && clicks <MAX_ADJUSTMENTS )
+  {
+     setMotorByDuration (FORWARD, 200);
+     clicks++;
+  }
+  else if (targetHeading < heading - HEADING_BUFFER && clicks > 0)
+  {
+    setMotorByDuration (BACKWARD, 200);
+    clicks--;
+  }
+  delay(200);
 }
+
+
+//utilities
+void logValue(String lab, int val)
+{
+  Serial.print(lab);
+  Serial.print(" : ");
+  Serial.println(val);
+}
+
+void setMotorByDuration(int dir, int duration)
+{
+  String lab;
+  if(dir == FORWARD)
+  {
+    lab = "Forward";
+    digitalWrite(IN1,HIGH);
+    digitalWrite(IN2,LOW);
+  }
+  else if(dir == BACKWARD)
+  {
+    lab = "Backward";
+    digitalWrite(IN1,LOW);
+    digitalWrite(IN2,HIGH);
+  }
+  delay(duration);
+  //read volitile 
+  ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { pos = posi;  }
+  //logValue(lab, pos );
+  //stop the motor
+  digitalWrite(IN1,LOW);
+  digitalWrite(IN2,LOW);
+}
+
+void readEncoder()
+{
+  int b = digitalRead(ENCB);
+  if(b > 0){
+    posi++;
+  }
+  else{
+    posi--;
+  }
+}
+
+/* UNUSED
+void setMotor(int dir, int pwmVal, int pwm, int in1, int in2){
+  //analogWrite(pwm,pwmVal);
+  if(dir == FORWARD){
+    digitalWrite(in1,HIGH);
+    digitalWrite(in2,LOW);
+  }
+  else if(dir == BACKWARD){
+    digitalWrite(in1,LOW);
+    digitalWrite(in2,HIGH);
+  }
+  else{
+    digitalWrite(in1,LOW);
+    digitalWrite(in2,LOW);
+  }
+}
+*/
