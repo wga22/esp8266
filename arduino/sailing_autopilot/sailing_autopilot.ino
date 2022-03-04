@@ -1,9 +1,19 @@
-// sailing autopilot
-// March 2022
-// Author: Will Allen
-//BOARD in use: Aduino Uno
-//NOTE: PWM must be plugged in!
+/*
+sailing autopilot
+March 2022
+Author: Will Allen
+BOARD in use: Aduino Uno
+NOTES: 
+  PWM must be plugged in!
+TODO/FUTURE: 
+  add in PID library
+  calibrate compass - https://github.com/mprograms/QMC5883LCompass
+  allow input of constants
+  allow course corrections / reset - button to reset targetHeading
+  direction reversal button
+  use values from the encoder to confirm position of the wheel
 
+*/
 //BEGIN Compass
 #include <QMC5883LCompass.h>
 
@@ -16,11 +26,28 @@
 #define IN2 6
 #define IN1 7
 
+//CONSTANTS
 const int FORWARD = 1;
 const int BACKWARD = -1;
 const int STOP = 0;
-const int MAX_ADJUSTMENTS = 10; //starts at halfway point
+
+// PID constants and store vals
+const float kp = 10;
+const float kd = 0.25;
+const float ki = 0.01;
+long prevT = 0;
+float prevDelta = 0;
+float eintegral = 0;
+
+//NAV adjustments
+//the wheel will not turn more than half of this amount in either direction to keep from overextending rudder
+const int MAX_ADJUSTMENTS = 20; //starts at halfway point
 int clicks = MAX_ADJUSTMENTS/2;
+
+const int MOVEMENT_DURATION = 80;  //duration of motor adjustment, this will be multiplied by a factor when heading delta grows
+const int MOVEMENT_DELAY = 500; //time to wait between adjustments
+const int HEADING_BUFFER = 6; //degrees of "buffer" to allow for going straight
+
 //encoder positions
 volatile int posi = 0; // specify posi as volatile: https://www.arduino.cc/reference/en/language/variables/variable-scope-qualifiers/volatile/
 int pos = 0; 
@@ -28,19 +55,13 @@ int pos = 0;
 //BEGIN Compass
 QMC5883LCompass compass;
 int targetHeading;
-const int HEADING_BUFFER = 10;
 
 void setup()
 {
+  delay(1000); //take a breath at bootup
   Serial.begin(9600);
-
-  //BEGIN Compass
-  compass.init();
-  compass.read();
-  targetHeading = compass.getAzimuth();
 
   //BEGIN encoder/motor
-  Serial.begin(9600);
   pinMode(ENCA,INPUT);
   pinMode(ENCB,INPUT);
   attachInterrupt(digitalPinToInterrupt(ENCA),readEncoder,RISING);
@@ -49,7 +70,15 @@ void setup()
   pinMode(IN1,OUTPUT);
   pinMode(IN2,OUTPUT);
   setMotorByDuration(STOP, 100); //make sure motor starting in stopped position
+
+  //BEGIN Compass
+  compass.init();
+  compass.setCalibration(-2606, 463, -810, 1901, -1555, 1225);
+  compass.setSmoothing(4, false); //1-10 are valid values, 10 means collect most points for average
+  delay(1000);  //take a breath to give chance for compass
+  compass.read();
   targetHeading = compass.getAzimuth();
+  logValue("targetHeading", targetHeading);  
 }
 
 
@@ -58,24 +87,95 @@ void loop()
   //BEGIN Compass
   compass.read();
   int heading = compass.getAzimuth();
-  logValue("Heading", heading);
-  logValue("Target Heading", targetHeading);
+  logValue("Heading(" + String(targetHeading) + ")", heading);
+ 
  //BEGIN encoder/motor
- //TODO: handle 360 / 0
+ //TODO: handle 360 / 0 overlap
  //TODO handle MAX and MIN positions
- if(targetHeading > heading + HEADING_BUFFER && clicks <MAX_ADJUSTMENTS )
-  {
-     setMotorByDuration (FORWARD, 200);
-     clicks++;
-  }
-  else if (targetHeading < heading - HEADING_BUFFER && clicks > 0)
-  {
-    setMotorByDuration (BACKWARD, 200);
-    clicks--;
-  }
-  delay(200);
+
+ //negative numbers mean turn left
+ //most cases the target and heading are on same part of compass or south
+ int delta = getDelta(targetHeading, heading);
+ logValue("delta", delta);
+ //the bigger the delta, the bigger the motor movement
+ //TODO: generate dur via PID: 
+
+ //int dur = simpleDurationCalc(delta);
+ int dur = calcPIDDuration(delta);
+ 
+ //turn right
+ //if should turn
+ if(abs(delta) > HEADING_BUFFER)
+ {
+   if(delta > 0 && clicks < MAX_ADJUSTMENTS)  //turn right
+    {
+       logValue("turn right for", dur);
+       setMotorByDuration (FORWARD, dur);
+       clicks++;
+    }
+    else if (delta < 0 && clicks > 0) //turn left
+    {
+      logValue("turn left for", dur);
+      setMotorByDuration (BACKWARD, dur);
+      clicks--;
+    }  
+ }
+  delay(MOVEMENT_DELAY);    //pause between each adjustment to give time for it to have an effect
 }
 
+int calcPIDDuration(int delta)
+{
+/*
+ * float kp = 1000;    
+ * float kd = 0.025;
+ * float ki = 0.0;
+ * long prevT = 0;    //previous timeslot
+ * float prevDelta = 0;   //previous "delta"
+ * float eintegral = 0;
+ */
+
+  //get time diff
+  long currT = micros();
+  float deltaT = ((float) (currT - prevT))/( 1.0e6 );
+  // derivative
+  float dedt = (delta-prevDelta)/(deltaT);
+  // integral
+  eintegral = eintegral + delta*deltaT;
+  logValue("dedt", dedt);
+  // control signal
+  float u = kp*delta + kd*dedt + ki*eintegral;
+
+  //set values for next cycle
+  prevDelta = delta;
+  prevT = currT;
+
+  return (int)round(abs(u));
+}
+
+int simpleDurationCalc(int delta)
+{
+  int retVal = (round(MOVEMENT_DURATION * abs(delta)/10)); 
+  return retVal;
+}
+
+
+//find how many degrees we are off from target heading, account for 360 == 0 north
+int getDelta(int targetHeading, int heading)
+{
+ int delta = targetHeading - heading;
+ //both values are north, and opposite sides of north
+ //account for target to the left of north
+ if( targetHeading > 270 && heading < 90 )
+ {
+    delta = (360 - targetHeading + heading)*-1;//turn left, so ensure negative
+ }
+ //account for target to the right of north
+ else if(heading > 270 && targetHeading < 90 )
+ {
+    delta = 360 - heading + targetHeading;//turn right, so will be positive
+ }
+  return delta;
+}
 
 //utilities
 void logValue(String lab, int val)
