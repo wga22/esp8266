@@ -8,10 +8,19 @@ known issues:
  -button sometimes takes multiple presses
  -some stations not playing, inconsistently
 
+feature ideas:
+- IR for channel change
+- access to PLEX / network filesystem
+
 supported boards (screen): 
 1) TTGO LoRa32-OLED V1 (define TTGO)
 2) XXXX (SSD1306)
 
+Revisions:
+1) 2020-03 initial
+2) 2021-05 - added stations
+3) 2022-02 - added revision number
+4) 2022-07 - updated libraries (ESP32-audioI2S)
 */
 
 //select only 1 of SSD1306 or TTGO
