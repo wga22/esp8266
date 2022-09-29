@@ -4,9 +4,18 @@ Special thanks:  https://github.com/schreibfaul1/ESP32-audioI2S
 Intial: Summer 2020
 Author: Will / wga22@yahoo.com
 
+NOTE:
+- must put in following lines on Audio.h to support redirects for iheartradio
+  https://github.com/schreibfaul1/ESP32-audioI2S/issues/54
+    #include "HTTPSRedirect.h"  //ALLEN
+    //WiFiClientSecure   clientsecure; // @suppress("Abstract class cannot be instantiated")
+    HTTPSRedirect  clientsecure; //ALLEN
+
 known issues: 
  -button sometimes takes multiple presses
  -some stations not playing, inconsistently
+ -ESP32-audioI2S: not working with 2.0.5, 2.0.4, 2.0.3
+  works with: 0fb4d50667bff8bd75d658b8db3cec76f75528e2
 
 feature ideas:
 - IR for channel change
@@ -16,11 +25,15 @@ supported boards (screen):
 1) TTGO LoRa32-OLED V1 (define TTGO)
 2) XXXX (SSD1306)
 
+Audio Boards:
+PCM5102 Pins (ESP32 > PCM5102):  +5v > +VIN, GND > GND, I2S_BCLK > BCK, I2S_DOUT > DIN, I2S_LRC > LRCK, GND > SCK
+
 Revisions:
 1) 2020-03 initial
 2) 2021-05 - added stations
 3) 2022-02 - added revision number
 4) 2022-07 - updated libraries (ESP32-audioI2S)
+5) 2022-09 - updated ESP32-audio library (C:\Users\wga22\Documents\Arduino\libraries\ESP32-audioI2S-master\src)
 */
 
 //select only 1 of SSD1306 or TTGO
@@ -297,9 +310,15 @@ void setupWIFI()
     Serial.print(",");
     WiFiMulti.addAP(ssid, password);
   #endif
-    #ifdef WIFI5_S
+  #ifdef WIFI5_S
     ssid = WIFI5_S;
     password = WIFI5_P;
+    Serial.print(ssid);
+    WiFiMulti.addAP(ssid, password);
+  #endif
+  #ifdef WIFI6_S
+    ssid = WIFI6_S;
+    password = WIFI6_P;
     Serial.print(ssid);
     WiFiMulti.addAP(ssid, password);
   #endif
