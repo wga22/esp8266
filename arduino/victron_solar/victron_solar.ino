@@ -140,6 +140,7 @@ int process_data(String searchString, String rowFromPanel)
   int posOfVar = rowFromPanel.indexOf(searchString);
   if(posOfVar > -1)
   {
+    //TODO: how to handle when PPV returns 21 instead of 21000 as expected?
     String valueDetail = rowFromPanel.substring(searchString.length());//make sure space is in the searchstring
     valueDetail.trim();
     res = valueDetail.toInt();
@@ -156,12 +157,20 @@ int getBoxOfSerial(String searchString, int maxSerialVal)
 {
   int returnValue = -1;
   blinkLED(-1); //turn LED on while processing off
-  for(int nLine = 0; nLine < 1000 && returnValue==-1; nLine++)  //give 1 min to find the data
+  //take best record from 100 lines
+  for(int nLine = 0; nLine < 100; nLine++)  //give 1 min to find the data
   {
     if(mySerial.available()>0)
     {
+      //mySerial.readStringUntil('\n'); //flush the first imperfect buffer line
       String inputLine = mySerial.readStringUntil('\n');
-      returnValue = process_data(searchString, inputLine);
+      int possibleValue = process_data(searchString, inputLine);
+      if(possibleValue!=-1)
+      {
+        //increment nLine since a match was found
+        nLine += 10;
+        returnValue = max(possibleValue, returnValue);
+      }
     }
     //if value out of range, try again by resetting returnvalue=-1
     if(maxSerialVal != -1 && returnValue > maxSerialVal)
