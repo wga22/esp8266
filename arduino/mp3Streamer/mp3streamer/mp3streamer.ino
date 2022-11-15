@@ -89,7 +89,7 @@ Revisions:
 
 //const int Pin_pause = 33;
 //NOTE: all of these require redirect and https
-const String ihrls = "https://stream.revma.ihrhls.com/";
+const String IHRLS = "https://stream.revma.ihrhls.com/";
 const String station_file = "/station.txt";
 const int MAXVOLUME = 21;
 
@@ -106,6 +106,7 @@ uint button_time = 0;
 
 
 String stations[][2] = {
+  {"http://stream-dc1.radioparadise.com/aac-128","Radio Paradise"},
   {"zc8143","The Breeze"},
   {"zc4439","Cool Oldies"},
   {"zc7078","Classic\nRock"},
@@ -226,7 +227,15 @@ void changeStation()
 
 String musicURL(String station_id)
 {
-  String url = ihrls + station_id;
+  String url;
+  if(station_id.length()>7)
+  {
+    url = station_id;
+  }
+  else  //iheartradio is shortid
+  {
+    url = IHRLS + station_id;
+  }
   //Serial.println(url);
   return url;
 }
