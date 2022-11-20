@@ -107,6 +107,7 @@ uint button_time = 0;
 
 String stations[][2] = {
   {"http://stream-dc1.radioparadise.com/aac-128","Radio Paradise"},
+  {"http://stream-dc1.radioparadise.com/mellow-128","RP-Mellow"},
   {"zc8143","The Breeze"},
   {"zc4439","Cool Oldies"},
   {"zc7078","Classic\nRock"},
@@ -142,6 +143,13 @@ void setup()
   Serial.begin(19200);
   delay(2000);  //short pause for power stabilization
   //WIFI
+
+  //display setup
+  setupDisplay();
+  logoshow();
+  //lcd_text("Wifi CONNECT");
+  
+  
   Serial.println("wifi setup");
   setupWIFI();
   connectWIFI();
@@ -160,10 +168,6 @@ void setup()
     //prevButton.setDebounceTime(5000);
   #endif
 
-  //display setup
-  setupDisplay();
-  logoshow();
-  //lcd_text("Wifi CONNECT");
 
   //audio setup
   audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
@@ -338,6 +342,7 @@ void connectWIFI()
 {
   while(WiFiMulti.run() != WL_CONNECTED) 
   {
+      lcd_text("Waiting to connect to WIFI");
       Serial.print(".");
       delay(1000);  //long enough to test the connection
   }
