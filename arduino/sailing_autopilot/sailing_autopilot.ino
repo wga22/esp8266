@@ -12,6 +12,7 @@ TODO/FUTURE:
   allow course corrections / reset - button to reset targetHeading
   direction reversal button
   use values from the encoder to confirm position of the wheel
+  support reading the location instead of putting in limiter for turn distance---wheel can only turn 45 deg each way
 
 */
 //BEGIN Compass
@@ -32,25 +33,21 @@ const int BACKWARD = -1;
 const int STOP = 0;
 
 // PID constants and store vals
-const float kp = 10;
-const float kd = 0.25;
+const float kp = 5;
+const float kd = 0.20;
 const float ki = 0.01;
 long prevT = 0;
 float prevDelta = 0;
 float eintegral = 0;
 
 //NAV adjustments
-//the wheel will not turn more than half of this amount in either direction to keep from overextending rudder
-const int MAX_ADJUSTMENTS = 20; //starts at halfway point
-int clicks = MAX_ADJUSTMENTS/2;
-
-const int MOVEMENT_DURATION = 80;  //duration of motor adjustment, this will be multiplied by a factor when heading delta grows
-const int MOVEMENT_DELAY = 500; //time to wait between adjustments
-const int HEADING_BUFFER = 6; //degrees of "buffer" to allow for going straight
+const int MOVEMENT_DELAY = 400; //time to wait between adjustments
+const int HEADING_BUFFER = 4; //degrees of "buffer" to allow for going straight
 
 //encoder positions
 volatile int posi = 0; // specify posi as volatile: https://www.arduino.cc/reference/en/language/variables/variable-scope-qualifiers/volatile/
 int pos = 0; 
+const int ENCODER_MAX_TURN = 6600 / 8;  //6600 bumps (600X11) / (max size of the turn, e.g. 5=20%)
 
 //BEGIN Compass
 QMC5883LCompass compass;
@@ -65,7 +62,6 @@ void setup()
   pinMode(ENCA,INPUT);
   pinMode(ENCB,INPUT);
   attachInterrupt(digitalPinToInterrupt(ENCA),readEncoder,RISING);
-  ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {    pos = posi;  }
   pinMode(PWM,OUTPUT);
   pinMode(IN1,OUTPUT);
   pinMode(IN2,OUTPUT);
@@ -78,7 +74,7 @@ void setup()
   delay(1000);  //take a breath to give chance for compass
   compass.read();
   targetHeading = compass.getAzimuth();
-  logValue("targetHeading", targetHeading);  
+  //logValue("targetHeading", targetHeading);  
 }
 
 
@@ -87,16 +83,17 @@ void loop()
   //BEGIN Compass
   compass.read();
   int heading = compass.getAzimuth();
-  logValue("Heading(" + String(targetHeading) + ")", heading);
+  //logValue("Heading(" + String(targetHeading) + ")", heading);
  
  //BEGIN encoder/motor
  //TODO: handle 360 / 0 overlap
  //TODO handle MAX and MIN positions
+ ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {    pos = posi;  }
 
  //negative numbers mean turn left
  //most cases the target and heading are on same part of compass or south
  int delta = getDelta(targetHeading, heading);
- logValue("delta", delta);
+ //logValue("Heading Delta", delta);
  //the bigger the delta, the bigger the motor movement
  //TODO: generate dur via PID: 
 
@@ -107,17 +104,16 @@ void loop()
  //if should turn
  if(abs(delta) > HEADING_BUFFER)
  {
-   if(delta > 0 && clicks < MAX_ADJUSTMENTS)  //turn right
+   //logValue("encoder pos", pos);
+   if(delta > 0 && pos < ENCODER_MAX_TURN)  //turn right
     {
-       logValue("turn right for", dur);
-       setMotorByDuration (FORWARD, dur);
-       clicks++;
+       logValue("DUR", dur);
+       setMotorByDuration (FORWARD , dur);
     }
-    else if (delta < 0 && clicks > 0) //turn left
+    else if (delta < 0 && pos > (-1*ENCODER_MAX_TURN)) //turn left
     {
-      logValue("turn left for", dur);
+      logValue("DUR", (-1*dur));
       setMotorByDuration (BACKWARD, dur);
-      clicks--;
     }  
  }
   delay(MOVEMENT_DELAY);    //pause between each adjustment to give time for it to have an effect
@@ -141,7 +137,7 @@ int calcPIDDuration(int delta)
   float dedt = (delta-prevDelta)/(deltaT);
   // integral
   eintegral = eintegral + delta*deltaT;
-  logValue("dedt", dedt);
+  //logValue("dedt", dedt);
   // control signal
   float u = kp*delta + kd*dedt + ki*eintegral;
 
@@ -152,12 +148,14 @@ int calcPIDDuration(int delta)
   return (int)round(abs(u));
 }
 
+/* Unused
+const int MOVEMENT_DURATION = 80;  //duration of motor adjustment, this will be multiplied by a factor when heading delta grows
 int simpleDurationCalc(int delta)
 {
   int retVal = (round(MOVEMENT_DURATION * abs(delta)/10)); 
   return retVal;
 }
-
+*/
 
 //find how many degrees we are off from target heading, account for 360 == 0 north
 int getDelta(int targetHeading, int heading)
