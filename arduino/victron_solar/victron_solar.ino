@@ -79,6 +79,7 @@ H19 0       -- Yield total, kWh
 H20 0     -- Yield today, kWh
 H21 397     -- Maximum power today, W
 
+TODO: leverage https://willcloud.crabdance.com/postdata.php
 
 */ 
 const char * TP_APPLE = "0NRCT2ZN3PNTMHUG";
@@ -142,7 +143,7 @@ int process_data(String searchString, String rowFromPanel)
   {
     //TODO: how to handle when PPV returns 21 instead of 21000 as expected?
     String valueDetail = rowFromPanel.substring(searchString.length());//make sure space is in the searchstring
-    valueDetail.trim();
+    //valueDetail.trim(); //removed OCt 12 for testing
     res = valueDetail.toInt();
     consoleWrite("found line and match:" + searchString + " == " + rowFromPanel + " -> " + valueDetail + " ->" + res);
   }
@@ -169,7 +170,14 @@ int getBoxOfSerial(String searchString, int maxSerialVal)
       {
         //increment nLine since a match was found
         nLine += 10;
-        returnValue = max(possibleValue, returnValue);
+        if(possibleValue > 0)
+        {
+          returnValue = max(possibleValue, returnValue);
+        }
+        else
+        {
+          returnValue = min(possibleValue, returnValue);
+        }
       }
     }
     //if value out of range, try again by resetting returnvalue=-1
